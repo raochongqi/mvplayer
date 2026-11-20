@@ -26,7 +26,7 @@ func TestShortcutArrowsSeekTenSeconds(t *testing.T) {
 	app, _ := newTestApp(t)
 	app.AddFile(testFiles()[0])
 	pl := app.players[0]
-	_ = pl.Seek(20_000)
+	_ = pl.SeekTo(20_000)
 	app.onKey(&fyne.KeyEvent{Name: fyne.KeyRight})
 	if got := pl.Position(); got < 29_500 || got > 30_500 {
 		t.Fatalf("right arrow pos=%d want ~30000", got)

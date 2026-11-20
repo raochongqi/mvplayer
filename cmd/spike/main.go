@@ -104,7 +104,7 @@ func main() {
 	for _, e := range engines {
 		_ = e.SetRate(1)
 	}
-	_ = engines[0].Seek(0)
+	_ = engines[0].SeekTo(0)
 	time.Sleep(300 * time.Millisecond)
 	for i, e := range engines {
 		pos := e.Position()
@@ -112,7 +112,7 @@ func main() {
 		if d := e.Duration(); d > 0 && target > d {
 			target = d
 		}
-		_ = e.Seek(target)
+		_ = e.SeekTo(target)
 		fmt.Printf("seek pane=%d from=%dms target=%dms\n", i, pos, target)
 	}
 	time.Sleep(400 * time.Millisecond)

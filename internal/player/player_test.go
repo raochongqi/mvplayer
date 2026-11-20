@@ -20,7 +20,7 @@ func (f *fake) Paused() bool       { return f.paused }
 func (f *fake) Position() int64    { return f.pos }
 func (f *fake) Duration() int64    { return f.dur }
 func (f *fake) Rate() float64      { return f.rate }
-func (f *fake) Seek(ms int64) error {
+func (f *fake) SeekTo(ms int64) error {
 	if ms < 0 {
 		ms = 0
 	}

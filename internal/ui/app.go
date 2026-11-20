@@ -152,7 +152,8 @@ func (a *App) buildToolbar() fyne.CanvasObject {
 		container.NewGridWrap(fyne.NewSize(66, 26), a.speedSel),
 		widget.NewLabel("叠加"), minusBtn,
 		container.NewGridWrap(fyne.NewSize(54, 26), overlayStepSel), plusBtn, a.rateLbl, settingsBtn)
-	bar := container.NewBorder(nil, nil, left, right, container.NewCenter(center))
+	bar := container.NewBorder(nil, nil,
+		container.NewCenter(left), container.NewCenter(right), container.NewCenter(center))
 	return container.NewStack(canvas.NewRectangle(ColorChrome), container.NewPadded(bar))
 }
 
@@ -333,7 +334,7 @@ func (a *App) nudgePane(p *Pane, ms int) {
 	if d := p.pl.Duration(); d > 0 && target > d {
 		target = d
 	}
-	_ = p.pl.Seek(target)
+	_ = p.pl.SeekTo(target)
 }
 
 func (a *App) seekPaneAbsolute(p *Pane, f float32) {
@@ -341,7 +342,7 @@ func (a *App) seekPaneAbsolute(p *Pane, f float32) {
 		return
 	}
 	if d := p.pl.Duration(); d > 0 {
-		_ = p.pl.Seek(int64(float32(d) * f))
+		_ = p.pl.SeekTo(int64(float32(d) * f))
 	}
 }
 
@@ -635,7 +636,7 @@ func (a *App) stepOnce() {
 		}
 		pl := p.pl
 		if p.pendingSeek > 0 && pl.Duration() > 0 {
-			_ = pl.Seek(p.pendingSeek)
+			_ = pl.SeekTo(p.pendingSeek)
 			p.pendingSeek = 0
 		}
 		p.SetProgress(pl.Position(), pl.Duration())

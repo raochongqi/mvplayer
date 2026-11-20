@@ -47,7 +47,7 @@ func (s *stub) current() int64 {
 	}
 	return s.base + int64(time.Since(s.started).Seconds()*1000*s.rate)
 }
-func (s *stub) Seek(ms int64) error {
+func (s *stub) SeekTo(ms int64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if ms < 0 {

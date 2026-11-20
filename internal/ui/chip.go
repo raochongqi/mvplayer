@@ -78,7 +78,10 @@ func (r *chipRenderer) Layout(size fyne.Size) {
 	r.c.bg.Resize(size)
 	r.c.border.Resize(size)
 	r.c.label.Resize(size)
-	r.c.label.Move(fyne.NewPos(0, (size.Height-16)/2))
+	// canvas.Text draws from its top edge, so centre by the measured height
+	// instead of a hard-coded baseline.
+	h := r.c.label.MinSize().Height
+	r.c.label.Move(fyne.NewPos(0, (size.Height-h)/2))
 }
 
 func (r *chipRenderer) MinSize() fyne.Size {

@@ -42,7 +42,7 @@ type Player interface {
 	Pause() error
 	Paused() bool
 	// Seek moves to an absolute position; implementations clamp to the file.
-	Seek(ms int64) error
+	SeekTo(ms int64) error
 	Position() int64 // ms
 	Duration() int64 // ms, 0 when unknown
 	SetRate(rate float64) error
@@ -121,7 +121,7 @@ func (c *Controller) SeekAll(deltaMs int64) error {
 		if d := p.Duration(); d > 0 && target > d {
 			target = d
 		}
-		return p.Seek(target)
+		return p.SeekTo(target)
 	})
 }
 

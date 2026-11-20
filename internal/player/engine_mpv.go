@@ -183,7 +183,7 @@ func (e *Engine) Paused() bool {
 }
 
 // Seek moves to an absolute position in milliseconds (exact seek).
-func (e *Engine) Seek(ms int64) error {
+func (e *Engine) SeekTo(ms int64) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	secs := float64(ms) / 1000.0

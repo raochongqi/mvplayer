@@ -29,7 +29,7 @@ func (f *fakeVideo) Close() error               { return nil }
 func (f *fakeVideo) Play() error                { f.paused = false; return nil }
 func (f *fakeVideo) Pause() error               { f.paused = true; return nil }
 func (f *fakeVideo) Paused() bool               { return f.paused }
-func (f *fakeVideo) Seek(ms int64) error        { f.pos = ms; return nil }
+func (f *fakeVideo) SeekTo(ms int64) error        { f.pos = ms; return nil }
 func (f *fakeVideo) Position() int64            { return f.pos }
 func (f *fakeVideo) Duration() int64            { return 600000 }
 func (f *fakeVideo) SetRate(r float64) error    { f.rate = r; return nil }
@@ -113,8 +113,8 @@ func TestRemoveMiddlePaneKeepsOthersWired(t *testing.T) {
 		app.AddFile(f)
 	}
 	p2, p3 := app.panes[2], app.panes[3]
-	_ = p2.pl.Seek(5_000)
-	_ = p3.pl.Seek(7_000)
+	_ = p2.pl.SeekTo(5_000)
+	_ = p3.pl.SeekTo(7_000)
 	app.removePane(app.panes[1])
 	if p2.pl == nil || p3.pl == nil {
 		t.Fatal("removal detached another pane")
