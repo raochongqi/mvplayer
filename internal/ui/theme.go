@@ -17,6 +17,8 @@ var (
 	ColorMuted  = color.NRGBA{R: 0x8a, G: 0x8f, B: 0x98, A: 0xff}
 	ColorAccent = color.NRGBA{R: 0x5b, G: 0x8c, B: 0xff, A: 0xff}
 	ColorAccentWeak = color.NRGBA{R: 0x5b, G: 0x8c, B: 0xff, A: 0x28}
+	ColorChipBG     = color.NRGBA{R: 0x0a, G: 0x0b, B: 0x0d, A: 0x8c}
+	ColorHUD        = color.NRGBA{R: 0x0a, G: 0x0b, B: 0x0d, A: 0x9e}
 )
 
 // Theme overrides the handful of Fyne colours the spec fixes, falling back to
@@ -40,8 +42,12 @@ func (t *Theme) Color(name fyne.ThemeColorName, v fyne.ThemeVariant) color.Color
 		return ColorChrome
 	case theme.ColorNameDisabledButton:
 		return ColorPane
-	case theme.ColorNameInputBackground, theme.ColorNameMenuBackground, theme.ColorNameOverlayBackground:
+	case theme.ColorNameInputBackground:
+		return ColorPane
+	case theme.ColorNameMenuBackground, theme.ColorNameOverlayBackground:
 		return ColorChrome
+	case theme.ColorNameInputBorder:
+		return ColorLine
 	case theme.ColorNameSeparator:
 		return ColorLine
 	case theme.ColorNamePlaceHolder:
@@ -67,5 +73,17 @@ func (t *Theme) Icon(name fyne.ThemeIconName) fyne.Resource {
 }
 
 func (t *Theme) Size(name fyne.ThemeSizeName) float32 {
+	switch name {
+	case theme.SizeNamePadding:
+		return 4
+	case theme.SizeNameInnerPadding:
+		return 2
+	case theme.SizeNameText:
+		return 12
+	case theme.SizeNameInputRadius, theme.SizeNameSelectionRadius:
+		return 3
+	case theme.SizeNameScrollBar, theme.SizeNameScrollBarSmall:
+		return 4
+	}
 	return t.base.Size(name)
 }

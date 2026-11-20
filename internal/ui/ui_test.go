@@ -26,6 +26,7 @@ func testFiles() []string {
 func newTestApp(t *testing.T) (*App, fyne.Window) {
 	t.Helper()
 	a := test.NewApp()
+	a.Settings().SetTheme(NewTheme())
 	w := test.NewWindow(nil)
 	w.Resize(fyne.NewSize(1440, 900))
 	app := New(a, w, filepath.Join(t.TempDir(), "history.json"))

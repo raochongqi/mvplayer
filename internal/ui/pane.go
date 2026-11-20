@@ -109,7 +109,7 @@ type Pane struct {
 	seek     *SeekBar
 	rateSel  *widget.Select
 	stepSel  *widget.Select
-	playBtn  *widget.Button
+	playBtn  *chipButton
 	surface  *canvas.Rectangle
 	image    *canvas.Image
 	onRemove func(*Pane)
@@ -169,10 +169,10 @@ func NewPane(index int, opts PaneOptions) *Pane {
 	})
 	p.stepSel.SetSelected("10s")
 
-	p.playBtn = widget.NewButton("Ⅱ", func() { p.toggle() })
-	minBtn := widget.NewButton("−", func() { p.nudge(-1) })
-	plusBtn := widget.NewButton("＋", func() { p.nudge(1) })
-	closeBtn := widget.NewButton("✕", func() {
+	p.playBtn = newChip("Ⅱ", func() { p.toggle() })
+	minBtn := newChip("−", func() { p.nudge(-1) })
+	plusBtn := newChip("＋", func() { p.nudge(1) })
+	closeBtn := newChip("✕", func() {
 		if p.onRemove != nil {
 			p.onRemove(p)
 		}
@@ -183,22 +183,16 @@ func NewPane(index int, opts PaneOptions) *Pane {
 	p.image.FillMode = canvas.ImageFillContain
 	p.image.Hide()
 
-	top := container.NewBorder(nil, nil,
-		container.NewPadded(p.title),
-		container.NewPadded(p.badge),
-	)
-	hud := container.NewBorder(nil, nil,
-		p.timeLbl,
-		container.NewHBox(minBtn, p.playBtn, plusBtn, closeBtn),
-		p.seek,
-	)
-	hudBox := container.NewVBox(hud, container.NewHBox(
-		widget.NewLabel("档位"), p.stepSel,
-		widget.NewLabel("倍速"), p.rateSel,
-	))
-	bottom := container.NewVBox(hudBox)
+	p.badge.TextStyle = fyne.TextStyle{Bold: true}
 
-	p.Root = container.NewStack(p.surface, p.image, top, container.NewBorder(nil, bottom, nil, nil, nil))
+	topRow := container.NewHBox(chip(p.title, ColorChipBG), layoutSpacer(), chip(p.badge, ColorAccentWeak))
+	stepBox := container.NewGridWrap(fyne.NewSize(56, 26), p.stepSel)
+	rateBox := container.NewGridWrap(fyne.NewSize(62, 26), p.rateSel)
+	hudRight := container.NewHBox(stepBox, minBtn, p.playBtn, plusBtn, rateBox, closeBtn)
+	hud := container.NewBorder(nil, nil, container.NewCenter(p.timeLbl), hudRight, p.seek)
+	hudBox := container.NewStack(canvas.NewRectangle(ColorHUD), container.NewPadded(hud))
+	overlay := container.NewBorder(topRow, hudBox, nil, nil, nil)
+	p.Root = container.NewStack(p.surface, p.image, overlay)
 	return p
 }
 

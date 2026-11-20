@@ -3,8 +3,11 @@ package ui
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"sync"
 	"time"
+
+	"fyne.io/fyne/v2/canvas"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -29,15 +32,17 @@ type App struct {
 	hist     *history.Store
 	histPath string
 
-	overlay    float64
-	globalStep int
-	layoutBtns map[layout.Layout]*widget.Button
+	overlay     float64
+	overlayStep float64
+	globalStep  int
+	layoutBtns map[layout.Layout]*chipButton
 	layoutBox  *fyne.Container
-	pauseBtn   *widget.Button
+	pauseBtn   *chipButton
 	speedSel   *widget.Select
 	stepSel    *widget.Select
 	rateLbl    *widget.Label
 	root       *fyne.Container
+	statusLbl  *widget.Label
 	stop       chan struct{}
 	stopOnce   sync.Once
 }
@@ -51,9 +56,10 @@ func New(a fyne.App, w fyne.Window, histPath string) *App {
 		ctrl:       player.NewController(),
 		hist:       history.New(),
 		histPath:   histPath,
-		overlay:    0,
-		globalStep: 10,
-		layoutBtns: map[layout.Layout]*widget.Button{},
+		overlay:     0,
+		overlayStep: 0.25,
+		globalStep:  10,
+		layoutBtns: map[layout.Layout]*chipButton{},
 		stop:       make(chan struct{}),
 	}
 	if s, err := history.Load(histPath); err == nil {
@@ -85,8 +91,9 @@ func New(a fyne.App, w fyne.Window, histPath string) *App {
 }
 
 func (a *App) buildToolbar() fyne.CanvasObject {
-	openBtn := widget.NewButton("＋ 打开视频", a.openDialog)
-	histBtn := widget.NewButton("≡ 历史", a.showHistory)
+	openBtn := newChip("＋ 打开视频", a.openDialog)
+	openBtn.SetPrimary(true)
+	histBtn := newChip("≡ 历史", a.showHistory)
 
 	a.layoutBox = container.NewHBox()
 	labels := map[layout.Layout]string{
@@ -95,20 +102,20 @@ func (a *App) buildToolbar() fyne.CanvasObject {
 	}
 	for _, l := range layout.All {
 		l := l
-		b := widget.NewButton(labels[l], func() { a.setLayout(l) })
+		b := newChip(labels[l], func() { a.setLayout(l) })
 		a.layoutBtns[l] = b
-		a.layoutBox.Add(b)
+		a.layoutBox.Add(container.NewGridWrap(fyne.NewSize(30, 26), b))
 	}
 
-	prevBtn := widget.NewButton("«", func() { a.seekAll(-int64(a.globalStep * 1000)) })
-	nextBtn := widget.NewButton("»", func() { a.seekAll(int64(a.globalStep * 1000)) })
+	prevBtn := newChip("«", func() { a.seekAll(-int64(a.globalStep * 1000)) })
+	nextBtn := newChip("»", func() { a.seekAll(int64(a.globalStep * 1000)) })
 	a.stepSel = widget.NewSelect([]string{"10s", "30s", "60s", "120s"}, func(s string) {
 		if n, ok := parseStep(s); ok {
 			a.globalStep = n
 		}
 	})
 	a.stepSel.SetSelected("10s")
-	a.pauseBtn = widget.NewButton("Ⅱ 全部暂停", a.toggleAll)
+	a.pauseBtn = newChip("Ⅱ 全部暂停", a.toggleAll)
 
 	a.rateLbl = widget.NewLabel("基线 1.00×　叠加 +0.00")
 	a.speedSel = widget.NewSelect(presetRates(), nil)
@@ -118,24 +125,36 @@ func (a *App) buildToolbar() fyne.CanvasObject {
 			a.setAllRates(r)
 		}
 	}
-	minusBtn := widget.NewButton("−", func() { a.nudgeAllRates(-0.25) })
-	plusBtn := widget.NewButton("＋", func() { a.nudgeAllRates(0.25) })
+	minusBtn := newChip("−", func() { a.nudgeAllRates(-a.overlayStep) })
+	plusBtn := newChip("＋", func() { a.nudgeAllRates(a.overlayStep) })
 
-	settingsBtn := widget.NewButton("⚙", func() {
+	settingsBtn := newChip("⚙", func() {
 		dialog.ShowInformation("设置", "自定义倍速/档位与历史开关将在下一版接入。", a.win)
 	})
 
-	left := container.NewHBox(openBtn, histBtn, widget.NewSeparator(), a.layoutBox,
-		widget.NewSeparator(), widget.NewLabel("全局"), prevBtn, a.stepSel, nextBtn, a.pauseBtn)
-	right := container.NewHBox(widget.NewLabel("全局倍速"), a.speedSel,
-		widget.NewLabel("叠加"), minusBtn, plusBtn, a.rateLbl, settingsBtn)
-	return container.NewBorder(nil, nil, left, right)
+	vsep := func() fyne.CanvasObject { return container.NewGridWrap(fyne.NewSize(1, 22), canvas.NewRectangle(ColorLine)) }
+	left := container.NewHBox(openBtn, histBtn, vsep(), a.layoutBox)
+	center := container.NewHBox(widget.NewLabel("全局"), prevBtn,
+		container.NewGridWrap(fyne.NewSize(58, 26), a.stepSel), nextBtn, a.pauseBtn)
+	overlayStepSel := widget.NewSelect([]string{"0.1", "0.25", "0.5", "1.0"}, func(s string) {
+		if v, err := strconv.ParseFloat(s, 64); err == nil {
+			a.overlayStep = v
+		}
+	})
+	overlayStepSel.SetSelected("0.25")
+	right := container.NewHBox(widget.NewLabel("全局倍速"),
+		container.NewGridWrap(fyne.NewSize(66, 26), a.speedSel),
+		widget.NewLabel("叠加"), minusBtn,
+		container.NewGridWrap(fyne.NewSize(54, 26), overlayStepSel), plusBtn, a.rateLbl, settingsBtn)
+	bar := container.NewBorder(nil, nil, left, right, container.NewCenter(center))
+	return container.NewStack(canvas.NewRectangle(ColorChrome), container.NewPadded(bar))
 }
 
 func (a *App) buildFooter() fyne.CanvasObject {
-	return container.NewHBox(
-		widget.NewLabel("空格 全局暂停　←/→ 全局 ±10s　拖动中缝调整布局"),
-	)
+	a.statusLbl = widget.NewLabel("0 路 · 叠加 +0.00×")
+	hint := widget.NewLabel("空格 全局暂停　←/→ 全局 ±10s　拖动中缝调整布局")
+	row := container.NewBorder(nil, nil, a.statusLbl, hint)
+	return container.NewStack(canvas.NewRectangle(ColorChrome), container.NewPadded(row))
 }
 
 // Start restores the window size and shows it.
@@ -221,12 +240,10 @@ func (a *App) setLayout(l layout.Layout) {
 
 func (a *App) refreshLayoutButtons() {
 	n := a.countPanes()
+	cur := a.stage.Layout()
 	for l, b := range a.layoutBtns {
-		if layout.ValidFor(l, n) {
-			b.Enable()
-		} else {
-			b.Disable()
-		}
+		b.SetEnabled(layout.ValidFor(l, n))
+		b.SetActive(l == cur)
 	}
 }
 
@@ -393,6 +410,23 @@ func (a *App) onDropped(_ fyne.Position, uris []fyne.URI) {
 	}
 }
 
+func (a *App) refreshStatus() {
+	if a.statusLbl == nil {
+		return
+	}
+	n := 0
+	for _, p := range a.panes {
+		if p.Path != "" {
+			n++
+		}
+	}
+	state := "播放中"
+	if a.ctrl.Paused() && n > 0 {
+		state = "已暂停"
+	}
+	a.statusLbl.SetText(fmt.Sprintf("%d 路 · %s · 叠加 %+.2f×", n, state, a.overlay))
+}
+
 func (a *App) Stop() {
 	a.stopOnce.Do(func() { close(a.stop) })
 }
@@ -406,6 +440,7 @@ func (a *App) tick() {
 			return
 		case <-t.C:
 		}
+		a.refreshStatus()
 		for i, p := range a.panes {
 			if p.Path == "" || i >= len(a.players) {
 				continue

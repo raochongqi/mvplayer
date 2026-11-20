@@ -2,9 +2,15 @@ package ui
 
 import (
 	"fmt"
+	"image/color"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 )
 
 func presetRates() []string {
@@ -49,3 +55,11 @@ func shortName(path string) string {
 	}
 	return base
 }
+
+func chip(obj fyne.CanvasObject, bg color.Color) fyne.CanvasObject {
+	r := canvas.NewRectangle(bg)
+	r.CornerRadius = 3
+	return container.NewStack(r, container.NewPadded(obj))
+}
+
+func layoutSpacer() fyne.CanvasObject { return layout.NewSpacer() }
