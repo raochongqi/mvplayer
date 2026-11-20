@@ -1,0 +1,75 @@
+name: ci
+
+on:
+  push:
+    branches: [main, "task/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    name: linux tests + mpv build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: system deps (libmpv + X11/GL headers)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libmpv-dev libgl1-mesa-dev xorg-dev libegl1 libxkbcommon-x11-0
+
+      - name: vet
+        run: go vet ./... && go vet -tags mpv ./...
+
+      - name: unit tests (stub engine)
+        run: go test ./...
+
+      - name: unit tests (real libmpv)
+        run: go test -tags mpv ./...
+
+      - name: build (libmpv)
+        run: go build -tags mpv -o build/mvplayer ./cmd/mvplayer
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mvplayer-linux
+          path: build/mvplayer
+          if-no-files-found: error
+
+  windows-cross:
+    name: windows cross-compile (no libmpv link)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: mingw
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc-mingw-w64-x86-64
+
+      - name: build windows exe
+        env:
+          CGO_ENABLED: "1"
+          GOOS: windows
+          GOARCH: amd64
+          CC: x86_64-w64-mingw32-gcc
+        run: go build -ldflags "-H windowsgui -s -w" -o build/mvplayer.exe ./cmd/mvplayer
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mvplayer-windows-stub
+          path: build/mvplayer.exe
+          if-no-files-found: error
