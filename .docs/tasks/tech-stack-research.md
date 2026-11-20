@@ -348,14 +348,16 @@ F1(P0) <file:line> | repro: <命令/测试> | 期望: <…> | 实际: <…> | �
 
 ## §5 收尾
 
-<!-- parent 写。 -->
-
-- 闸口记录：<G1 通过 … G3 第 n 轮可合并>
-- 裁定：<偏离申报 / 越界 / 无>
-- 合并：`<commit>`，`Review: <审核者 id>`
-- 合并后门禁：<绿 / 红 + 处置>
-- 清理：<worktree / 分支 已删，附 list 输出>
-- 遗留：<进队列的编号 + 去向>
+- 闸口记录：G1 通过（22 条需求可追溯 + 设计锁 10 字段一致）；G2 完成（§2/§2.8–2.11）；G3 审核**按用户指示跳过**（用户 2026-11-20 明确「禁止你再派子代理」，无法派审核者，已记录）；G5 合并由 owner 按用户直接指示执行（用户 2026-11-20T20:38「先把项目收尾合并上去在 main 跑通」）。
+- 合并：`04264e4`（merge: task/tech-stack-research）+ `31ff86c`（工具栏单行对齐修复）。合并前在克隆中解决 `.gitignore` add/add 冲突（取并集：`.dsh-tmp/`、`build/`、`.docs/evidence/`、`*.log`）。
+- 合并后门禁（main 上实测）：
+  - `go vet ./...` / `go vet -tags mpv ./...` → exit 0
+  - `go test ./...` → 4 包全绿；`go test -tags mpv ./...` → 4 包全绿（含真 libmpv 端到端）
+  - `go build -tags mpv` → 30 MiB；Windows 交叉编译（mingw + libmpv）→ 25 MiB exe
+  - Windows NSIS 安装包 → 42.5 MiB（44,588,554 B），≤50MiB
+- 推送：`git push origin main` 失败——`~/.git-credentials` 只有 gitee.com，没有 github.com 凭据。**需要用户提供 GitHub 凭据或自行 push**，push 后 `.github/workflows/ci.yml` 会跑（linux 测试+mpv 构建、Windows 交叉编译）。
+- 清理：`.dsh-tmp/`（样本/脚本/克隆）与 `.docs/evidence/` 不进版本库（已 gitignore）；`build/` 同样忽略。worktree `/root/wt/tech-stack-research` 与分支 `task/tech-stack-research` 可删（内容已合入 main）。
+- 遗留：真机窗口验证、长片历史手感、Windows 实机安装；CI 首次运行需用户 push。
 
 ### 交接块（parent 换人/上下文耗尽时接这五行）
 
