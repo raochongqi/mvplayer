@@ -13,6 +13,11 @@ version: '1.0'
 name: ci
 displayName: CI（自定义镜像）
 
+# 构建慢/超时：任务超时放宽到 90 分钟（上限 1440）
+strategy:
+  blocking: false
+  stepTimeout: 90
+
 stages:
   - stage:
     name: test
@@ -28,7 +33,7 @@ stages:
         password: ${REGISTRY_PASSWORD}
         tag: mvplayer-ci:${GITEE_PIPELINE_BUILD_NUMBER}
         dockerfile: ./packaging/ci/Dockerfile
-        isCache: false
+        isCache: true
 
 triggers:
   push:
