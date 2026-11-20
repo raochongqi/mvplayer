@@ -62,6 +62,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"os"
 	"sync"
 	"unsafe"
 )
@@ -93,11 +94,15 @@ func NewEngine() (*Engine, error) {
 	}
 	// The render API needs the libmpv video output; keep audio pitch stable at
 	// any speed (requirement: 0.5x–8x per pane).
-	for _, kv := range [][2]string{
+	opts := [][2]string{
 		{"vo", "libmpv"},
 		{"audio-pitch-correction", "yes"},
 		{"hwdec", "auto-safe"},
-	} {
+	}
+	if v := os.Getenv("MVPLAYER_AO"); v != "" {
+		opts = append(opts, [2]string{"ao", v})
+	}
+	for _, kv := range opts {
 		k, v := C.CString(kv[0]), C.CString(kv[1])
 		C.mpv_set_option_string(h, k, v)
 		C.free(unsafe.Pointer(k))
