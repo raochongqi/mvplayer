@@ -4,7 +4,8 @@
 GO        ?= go
 CC_LINUX  ?= /usr/bin/gcc-13
 BUILD     ?= build
-MPV_DEV   ?= third_party/mpv
+MPV_DEV     ?= third_party/mpv
+MPV_DEV_ABS := $(abspath $(MPV_DEV))
 
 .PHONY: test build build-mpv run fetch-libmpv package-windows clean
 
@@ -28,7 +29,7 @@ fetch-libmpv:
 # Cross-compiled Windows build. Needs mingw-w64 + the libmpv dev package.
 package-windows: fetch-libmpv
 	CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc \
-	CGO_CFLAGS="-I$(MPV_DEV)/include" CGO_LDFLAGS="-L$(MPV_DEV) -lmpv" \
+	CGO_CFLAGS="-I$(MPV_DEV_ABS)/include" CGO_LDFLAGS="-L$(MPV_DEV_ABS) -lmpv" \
 	$(GO) build -tags mpv -ldflags "-H windowsgui -s -w" \
 	-o $(BUILD)/mvplayer.exe ./cmd/mvplayer
 	cp $(MPV_DEV)/libmpv-2.dll $(BUILD)/

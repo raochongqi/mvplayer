@@ -358,7 +358,9 @@ F1(P0) <file:line> | repro: <命令/测试> | 期望: <…> | 实际: <…> | �
 - 推送：曾推 Gitee（`origin`），后按用户要求改回 **GitHub**：`github = https://github.com/raochongqi/mvplayer.git`，用用户提供的 PAT 推送 main；Gitee Go 的 `.workflow/` 配置已移除。
 - CI 现状：`.github/workflows/ci.yml`（GitHub Actions：Linux vet + 两套测试 + libmpv 构建；Windows mingw 交叉编译）。`packaging/ci/Dockerfile` 保留为本地/容器化 CI 用（本机无 docker，未实跑）。Gitee Go 方案已按用户要求放弃并移除。
 - 清理：`.dsh-tmp/`（样本/脚本/克隆）与 `.docs/evidence/` 不进版本库（已 gitignore）；`build/` 同样忽略。worktree `/root/wt/tech-stack-research` 与分支 `task/tech-stack-research` 可删（内容已合入 main）。
-- 仓库只留文本与设计批准件：过程截图、变体图、测试用 mkv 均未提交；应用图标改为运行时用 `image/png` 生成（`internal/ui/icon.go`）；真实解码测试改为 `MVPLAYER_SAMPLE` 显式开启，CI 用 ffmpeg 现场生成样本。
+- 仓库只留文本与设计批准件：过程截图、变体图、测试用 mkv、libmpv DLL 均未提交；应用图标改为运行时用 `image/png` 生成（`internal/ui/icon.go`）；真实解码测试改为 `MVPLAYER_SAMPLE` 显式开启，CI 用 ffmpeg 现场生成样本。
+- Windows 依赖获取：`make fetch-libmpv` → `scripts/fetch-libmpv.sh` 从 SourceForge 解析最新 `mpv-dev-x86_64` 并解包到 `third_party/mpv`（gitignore）；`make package-windows` 依赖它。实测该流程产出 exe 25 MiB + dll 116 MiB，NSIS 安装包 42.5 MiB（44,589,353 B）。
+- GitHub Actions 实测：`d6ddb14` 的 linux 与 windows-cross 两个 job 全绿（含用 ffmpeg 生成样本后的真 libmpv 测试）。
 - 遗留：真机窗口验证、长片历史手感、Windows 实机安装；CI 首次运行需用户 push。
 
 ### 交接块（parent 换人/上下文耗尽时接这五行）
