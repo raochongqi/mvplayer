@@ -39,7 +39,8 @@ Linux 运行依赖系统 `libmpv2`（Debian/Ubuntu：`apt install libmpv2`），
 GitHub Actions：`.github/workflows/ci.yml`
 
 - `linux` job：装 `libmpv-dev`/X11/GL 头，跑 `go vet`（两种 tag）、两套 `go test`、`go build -tags mpv`，上传二进制
-- `windows-cross` job：mingw 交叉编译 Windows exe（不含 libmpv 链接，仅验证编译）
+- `windows-package` job：下载官方 libmpv → 交叉编译真实 exe → NSIS 打出安装包，产物 `mvplayer-windows`（含 exe + dll + setup）
+- Linux 产物是动态链接系统 libmpv 的二进制，运行机器需要 `libmpv2`
 
 本地也可用容器跑同一套检查：
 

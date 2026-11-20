@@ -46,16 +46,17 @@ jobs:
         run: go test -tags mpv ./...
 
       - name: build (libmpv)
-        run: go build -tags mpv -o build/mvplayer ./cmd/mvplayer
+        run: |
+          go build -tags mpv -o build/mvplayer ./cmd/mvplayer
+          ldd build/mvplayer | grep -i mpv
 
       - uses: actions/upload-artifact@v4
         with:
-          name: mvplayer-linux
+          name: mvplayer-linux（需系统 libmpv2）
           path: build/mvplayer
-          if-no-files-found: error
 
-  windows-cross:
-    name: windows cross-compile (no libmpv link)
+  windows-package:
+    name: windows package (exe + libmpv + installer)
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -65,21 +66,26 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: mingw
+      - name: mingw + nsis + 7zip
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends gcc-mingw-w64-x86-64
+          sudo apt-get install -y --no-install-recommends \
+            gcc-mingw-w64-x86-64 nsis p7zip-full curl
 
-      - name: build windows exe
-        env:
-          CGO_ENABLED: "1"
-          GOOS: windows
-          GOARCH: amd64
-          CC: x86_64-w64-mingw32-gcc
-        run: go build -ldflags "-H windowsgui -s -w" -o build/mvplayer.exe ./cmd/mvplayer
+      - name: fetch official libmpv (not committed)
+        run: make fetch-libmpv
+
+      - name: build exe + installer
+        run: |
+          make package-windows
+          makensis packaging/windows/installer.nsi
+          ls -lh build/mvplayer.exe build/libmpv-2.dll build/mvPlayer-0.1.0-setup.exe
 
       - uses: actions/upload-artifact@v4
         with:
-          name: mvplayer-windows-stub
-          path: build/mvplayer.exe
+          name: mvplayer-windows
+          path: |
+            build/mvPlayer-0.1.0-setup.exe
+            build/mvplayer.exe
+            build/libmpv-2.dll
           if-no-files-found: error
