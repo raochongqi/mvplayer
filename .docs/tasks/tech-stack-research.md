@@ -355,8 +355,8 @@ F1(P0) <file:line> | repro: <命令/测试> | 期望: <…> | 实际: <…> | �
   - `go test ./...` → 4 包全绿；`go test -tags mpv ./...` → 4 包全绿（含真 libmpv 端到端）
   - `go build -tags mpv` → 30 MiB；Windows 交叉编译（mingw + libmpv）→ 25 MiB exe
   - Windows NSIS 安装包 → 42.5 MiB（44,588,554 B），≤50MiB
-- 推送：GitHub 不可达，改用 **Gitee**：`origin = https://gitee.com/awyudbiamuwd/mv-player.git`；`git push -u origin main` 成功（remote `refs/heads/main` 已指向本地 HEAD）。GitHub Actions 的 `ci.yml` 保留在仓库里，但当前流程走 Gitee Go。
-- CI 现状：`.github/workflows/ci.yml`（GitHub Actions）保留；**Gitee Go 走自定义镜像**：新增 `packaging/ci/Dockerfile`（golang:1.27 + libmpv-dev + X11/Wayland/GL 头，RUN 里跑 vet、两套测试、mpv 构建）与 `.workflow/ci.yml`（`build@docker`，需要 `REGISTRY_REPOSITORY/USER/PASSWORD` 三个变量）。本机无 docker，未实际构建镜像。
+- 推送：曾推 Gitee（`origin`），后按用户要求改回 **GitHub**：`github = https://github.com/raochongqi/mvplayer.git`，用用户提供的 PAT 推送 main；Gitee Go 的 `.workflow/` 配置已移除。
+- CI 现状：`.github/workflows/ci.yml`（GitHub Actions：Linux vet + 两套测试 + libmpv 构建；Windows mingw 交叉编译）。`packaging/ci/Dockerfile` 保留为本地/容器化 CI 用（本机无 docker，未实跑）。Gitee Go 方案已按用户要求放弃并移除。
 - 清理：`.dsh-tmp/`（样本/脚本/克隆）与 `.docs/evidence/` 不进版本库（已 gitignore）；`build/` 同样忽略。worktree `/root/wt/tech-stack-research` 与分支 `task/tech-stack-research` 可删（内容已合入 main）。
 - 遗留：真机窗口验证、长片历史手感、Windows 实机安装；CI 首次运行需用户 push。
 

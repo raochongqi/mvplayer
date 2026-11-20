@@ -30,7 +30,13 @@ makensis packaging/windows/installer.nsi
 
 ## CI
 
-- GitHub Actions：`.github/workflows/ci.yml`（Linux vet + 两套测试 + libmpv 构建；Windows mingw 交叉编译）。
-- Gitee Go：`.workflow/ci.yml` + `packaging/ci/Dockerfile`。流水线用 `build@docker` 构建自定义镜像，Dockerfile 里依次跑 `go vet`、两套 `go test`、`go build -tags mpv`，测试失败即构建失败。
-  需要在流水线变量里配置 `REGISTRY_REPOSITORY` / `REGISTRY_USER` / `REGISTRY_PASSWORD`（镜像仓库）。
-  没有镜像仓库时可直接本地验证：`docker build -f packaging/ci/Dockerfile -t mvplayer-ci .`
+GitHub Actions：`.github/workflows/ci.yml`
+
+- `linux` job：装 `libmpv-dev`/X11/GL 头，跑 `go vet`（两种 tag）、两套 `go test`、`go build -tags mpv`，上传二进制
+- `windows-cross` job：mingw 交叉编译 Windows exe（不含 libmpv 链接，仅验证编译）
+
+本地也可用容器跑同一套检查：
+
+```bash
+docker build -f packaging/ci/Dockerfile -t mvplayer-ci .
+```
