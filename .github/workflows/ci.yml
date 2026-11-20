@@ -32,7 +32,17 @@ jobs:
       - name: unit tests (stub engine)
         run: go test ./...
 
+      - name: generate test media (ffmpeg)
+        run: |
+          mkdir -p /tmp/media
+          ffmpeg -y -f lavfi -i testsrc=size=640x360:rate=30 \
+                 -f lavfi -i sine=frequency=440 -t 10 \
+                 -c:v libx264 -pix_fmt yuv420p -c:a aac /tmp/media/sample.mkv
+          ls -lh /tmp/media/sample.mkv
+
       - name: unit tests (real libmpv)
+        env:
+          MVPLAYER_SAMPLE: /tmp/media/sample.mkv
         run: go test -tags mpv ./...
 
       - name: build (libmpv)

@@ -40,3 +40,12 @@ GitHub Actions：`.github/workflows/ci.yml`
 ```bash
 docker build -f packaging/ci/Dockerfile -t mvplayer-ci .
 ```
+
+测试不提交任何二进制媒体：单测用临时生成的占位 `.mkv`（只用到路径与扩展名），
+真实解码测试需要显式给样本：
+
+```bash
+MVPLAYER_SAMPLE=/path/to/real.mkv go test -tags mpv ./...
+```
+
+CI 里用 `ffmpeg` 现场生成 `sample.mkv` 再跑真实解码测试。

@@ -27,7 +27,10 @@ func TestRealMpvFramesIntoPanes(t *testing.T) {
 	app.SetFactory(player.NewDefault)
 	defer app.Stop()
 
-	file := "/root/mvPlayer/.dsh-tmp/ff/media/hd1080.mkv"
+	file := os.Getenv("MVPLAYER_SAMPLE")
+	if file == "" {
+		t.Skip("set MVPLAYER_SAMPLE to a real .mkv to run the end-to-end test")
+	}
 	for i := 0; i < 2; i++ {
 		app.AddFile(file)
 	}
@@ -55,7 +58,7 @@ func TestRealMpvFramesIntoPanes(t *testing.T) {
 		}
 		p.SetFrame(img)
 	}
-	dir := "/root/mvPlayer/.docs/evidence/tech-stack-research"
+	dir := evidenceDir(t)
 	f, err := os.Create(filepath.Join(dir, "impl-realmpv.png"))
 	if err != nil {
 		t.Fatal(err)

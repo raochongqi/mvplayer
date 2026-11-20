@@ -40,7 +40,7 @@ func TestShortcutArrowsSeekTenSeconds(t *testing.T) {
 func TestMultiPickerListsVideos(t *testing.T) {
 	app, _ := newTestApp(t)
 	p := newMultiPicker(app.win, nil)
-	p.navigate(storage.NewFileURI(mediaDir))
+	p.navigate(storage.NewFileURI(mediaDirPath()))
 	n := 0
 	for _, e := range p.entries {
 		if !isDir(e) {

@@ -1,10 +1,12 @@
 package ui
 
 import (
+	"fmt"
 	"image/color"
 	"image/png"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"fyne.io/fyne/v2"
@@ -14,15 +16,35 @@ import (
 	"mvplayer/internal/player"
 )
 
-const mediaDir = "/root/mvPlayer/.dsh-tmp/ff/media"
+// testFiles returns four placeholder .mkv paths in a temp dir. Content is not
+// needed: the unit tests use the in-memory engine, and the picker only filters
+// by extension. Real playback is covered by the opt-in MVPLAYER_SAMPLE test.
+var (
+	mediaOnce sync.Once
+	mediaDir  string
+)
+
+func mediaDirPath() string {
+	mediaOnce.Do(func() {
+		dir, err := os.MkdirTemp("", "mvplayer-media")
+		if err != nil {
+			panic(err)
+		}
+		mediaDir = dir
+		for i := 1; i <= 4; i++ {
+			_ = os.WriteFile(filepath.Join(dir, fmt.Sprintf("sample-%d.mkv", i)), []byte("mvplayer test"), 0o644)
+		}
+	})
+	return mediaDir
+}
 
 func testFiles() []string {
-	return []string{
-		filepath.Join(mediaDir, "h264_aac.mkv"),
-		filepath.Join(mediaDir, "hevc_aac.mkv"),
-		filepath.Join(mediaDir, "h264_ac3.mkv"),
-		filepath.Join(mediaDir, "vp9_opus.mkv"),
+	dir := mediaDirPath()
+	out := make([]string, 0, 4)
+	for i := 1; i <= 4; i++ {
+		out = append(out, filepath.Join(dir, fmt.Sprintf("sample-%d.mkv", i)))
 	}
+	return out
 }
 
 func newTestApp(t *testing.T) (*App, fyne.Window) {
@@ -106,13 +128,7 @@ func TestSplitterDragChangesRatio(t *testing.T) {
 }
 
 func TestCaptureScreenshots(t *testing.T) {
-	dir := os.Getenv("MVPLAYER_EVIDENCE")
-	if dir == "" {
-		dir = "/root/mvPlayer/.docs/evidence/tech-stack-research"
-	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
+	dir := evidenceDir(t)
 	app, w := newTestApp(t)
 	for _, f := range testFiles() {
 		app.AddFile(f)
@@ -138,13 +154,7 @@ func TestCaptureScreenshots(t *testing.T) {
 }
 
 func TestCaptureEmptyAndThreePaneStates(t *testing.T) {
-	dir := os.Getenv("MVPLAYER_EVIDENCE")
-	if dir == "" {
-		dir = "/root/mvPlayer/.docs/evidence/tech-stack-research"
-	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
+	dir := evidenceDir(t)
 	app, w := newTestApp(t)
 	save := func(name string) {
 		f, err := os.Create(filepath.Join(dir, name))
@@ -162,4 +172,19 @@ func TestCaptureEmptyAndThreePaneStates(t *testing.T) {
 	}
 	app.setLayout(layout.ThreeQ)
 	save("impl-3q-empty-slot.png")
+}
+
+// evidenceDir returns a writable directory for screenshots. CI runs with an
+// unprivileged user and no checkout paths, so the default is the test temp
+// dir; set MVPLAYER_EVIDENCE to copy artefacts into the repo.
+func evidenceDir(t *testing.T) string {
+	t.Helper()
+	dir := os.Getenv("MVPLAYER_EVIDENCE")
+	if dir == "" {
+		dir = t.TempDir()
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return dir
 }

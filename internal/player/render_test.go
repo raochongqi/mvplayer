@@ -5,12 +5,16 @@ package player
 import (
 	"image/png"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
 
 func TestRenderFrameProducesPicture(t *testing.T) {
-	const file = "/root/mvPlayer/.dsh-tmp/ff/media/long_h264_aac.mkv"
+	file := os.Getenv("MVPLAYER_SAMPLE")
+	if file == "" {
+		t.Skip("set MVPLAYER_SAMPLE to a real .mkv to run the render test")
+	}
 	e, err := NewEngine()
 	if err != nil {
 		t.Fatal(err)
@@ -54,7 +58,7 @@ func TestRenderFrameProducesPicture(t *testing.T) {
 	if variance < 50 {
 		t.Fatalf("frame looks blank, variance=%.1f mean=%.1f", variance, mean)
 	}
-	f, _ := os.Create("/root/mvPlayer/.docs/evidence/tech-stack-research/frame-check.png")
+	f, _ := os.Create(filepath.Join(t.TempDir(), "frame-check.png"))
 	png.Encode(f, img)
 	f.Close()
 	t.Logf("frame ok variance=%.1f mean=%.1f", variance, mean)

@@ -74,10 +74,7 @@ func TestFramesPaintIntoPanes(t *testing.T) {
 			p.SetFrame(img)
 		}
 	}
-	dir := os.Getenv("MVPLAYER_EVIDENCE")
-	if dir == "" {
-		dir = "/root/mvPlayer/.docs/evidence/tech-stack-research"
-	}
+	dir := evidenceDir(t)
 	f, err := os.Create(filepath.Join(dir, "impl-frames.png"))
 	if err != nil {
 		t.Fatal(err)
