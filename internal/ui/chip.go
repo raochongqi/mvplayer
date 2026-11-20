@@ -77,10 +77,10 @@ type chipRenderer struct {
 func (r *chipRenderer) Layout(size fyne.Size) {
 	r.c.bg.Resize(size)
 	r.c.border.Resize(size)
-	r.c.label.Resize(size)
-	// canvas.Text draws from its top edge, so centre by the measured height
-	// instead of a hard-coded baseline.
+	// canvas.Text draws from the top of its own box: give it exactly the text
+	// height and centre that box, otherwise it sits high in the chip.
 	h := r.c.label.MinSize().Height
+	r.c.label.Resize(fyne.NewSize(size.Width, h))
 	r.c.label.Move(fyne.NewPos(0, (size.Height-h)/2))
 }
 

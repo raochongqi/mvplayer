@@ -138,23 +138,28 @@ func (a *App) buildToolbar() fyne.CanvasObject {
 
 	settingsBtn := newChip("⚙", a.showSettings)
 
-	vsep := func() fyne.CanvasObject { return container.NewGridWrap(fyne.NewSize(1, 22), canvas.NewRectangle(ColorLine)) }
-	left := container.NewHBox(openBtn, histBtn, vsep(), a.layoutBox)
-	center := container.NewHBox(widget.NewLabel("全局"), prevBtn,
-		container.NewGridWrap(fyne.NewSize(58, 26), a.stepSel), nextBtn, a.pauseBtn)
 	overlayStepSel := widget.NewSelect([]string{"0.1", "0.25", "0.5", "1.0"}, func(s string) {
 		if v, err := strconv.ParseFloat(s, 64); err == nil {
 			a.overlayStep = v
 		}
 	})
 	overlayStepSel.SetSelected("0.25")
-	right := container.NewHBox(widget.NewLabel("全局倍速"),
-		container.NewGridWrap(fyne.NewSize(66, 26), a.speedSel),
+
+	sep := canvas.NewRectangle(ColorLine)
+	sep.SetMinSize(fyne.NewSize(1, 22))
+	leftItems := []fyne.CanvasObject{openBtn, histBtn, sep, a.layoutBox}
+	midItems := []fyne.CanvasObject{
+		widget.NewLabel("全局"), prevBtn,
+		container.NewGridWrap(fyne.NewSize(58, 26), a.stepSel), nextBtn, a.pauseBtn,
+	}
+	rightItems := []fyne.CanvasObject{
+		widget.NewLabel("全局倍速"), container.NewGridWrap(fyne.NewSize(66, 26), a.speedSel),
 		widget.NewLabel("叠加"), minusBtn,
-		container.NewGridWrap(fyne.NewSize(54, 26), overlayStepSel), plusBtn, a.rateLbl, settingsBtn)
-	bar := container.NewBorder(nil, nil,
-		container.NewCenter(left), container.NewCenter(right), container.NewCenter(center))
-	return container.NewStack(canvas.NewRectangle(ColorChrome), container.NewPadded(bar))
+		container.NewGridWrap(fyne.NewSize(54, 26), overlayStepSel), plusBtn,
+		a.rateLbl, settingsBtn,
+	}
+	return NewToolbar(leftItems, midItems, rightItems)
+
 }
 
 func (a *App) buildFooter() fyne.CanvasObject {
