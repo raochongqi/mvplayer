@@ -4,3 +4,4 @@ build/
 docs/evidence/
 .docs/evidence/
 *.log
+third_party/

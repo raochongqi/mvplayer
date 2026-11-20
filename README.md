@@ -14,13 +14,19 @@ make build         # 无 mpv 的内存桩版本（UI 调试用）
 make build-mpv     # 链接 libmpv 的正式版本
 ```
 
-Windows 交叉编译：
+Windows 交叉编译（需要 `gcc-mingw-w64-x86-64`、`p7zip-full`）：
 
 ```sh
-# 解压 mpv-dev-x86_64 到 ~/mpv-dev-x86_64（含 include/、libmpv.dll.a、libmpv-2.dll）
-make package-windows
+make fetch-libmpv          # 从 SourceForge 下载官方 mpv-dev-x86_64，解到 third_party/mpv
+make package-windows       # 交叉编译 + 拷贝 libmpv-2.dll 到 build/
 makensis packaging/windows/installer.nsi
 ```
+
+`libmpv-2.dll`（约 116 MiB）不进仓库，由 `scripts/fetch-libmpv.sh` 按需下载；
+安装包会把它和 `mvplayer.exe` 一起打包。手动下载地址：
+<https://sourceforge.net/projects/mpv-player-windows/files/libmpv/>。
+
+Linux 运行依赖系统 `libmpv2`（Debian/Ubuntu：`apt install libmpv2`），不需要额外下载 DLL。
 
 ## 体积
 
