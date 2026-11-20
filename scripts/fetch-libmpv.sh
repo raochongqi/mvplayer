@@ -24,9 +24,9 @@ fi
 
 echo "resolving latest mpv-dev-${arch} ..."
 rss=$(curl -fsSL "https://sourceforge.net/projects/mpv-player-windows/rss?path=/libmpv")
+# -m1 stops at the first match; a `| head -1` here trips pipefail with SIGPIPE.
 url=$(printf '%s' "$rss" \
-    | grep -oE "https://[^\"<]*mpv-dev-${arch}-[0-9]+-git-[0-9a-f]+\.7z/download" \
-    | head -1)
+    | grep -m1 -oE "https://[^\"<]*mpv-dev-${arch}-[0-9]+-git-[0-9a-f]+\.7z/download" || true)
 if [ -z "$url" ]; then
     echo "could not find mpv-dev-${arch} in the SourceForge feed" >&2
     echo "download manually from https://sourceforge.net/projects/mpv-player-windows/files/libmpv/" >&2
