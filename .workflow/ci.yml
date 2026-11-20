@@ -1,19 +1,23 @@
-# Gitee Go 流水线：自定义镜像跑 vet + 两套测试 + mpv 构建。
+# Gitee Go 流水线（文档核对过的结构）
+#   - 顶层：version / name / displayName / variables / strategy / stages / triggers
+#   - stages 列表项：`- stage:` 空键，name/displayName/strategy/trigger/steps 与它同级
+#   - 自定义参数必须先在 variables: 里声明，才能用 ${XXX} 引用，
+#     否则会报 "failed to resolve - invalid inference format"
 #
-# 注意 Gitee Go 的 stage 写法是「- stage:」空键，name/displayName/steps 与它同级，
-# 不能缩进到 stage: 下面（那样会报 stages[0].steps 缺失）。
-#
-# 需要先在流水线变量里配置：
-#   REGISTRY_REPOSITORY  镜像仓库地址，如 registry.cn-hangzhou.aliyuncs.com/your-ns
-#   REGISTRY_USER        仓库用户名
-#   REGISTRY_PASSWORD    仓库密码/访问令牌
-# 没有镜像仓库时可本地验证：docker build -f packaging/ci/Dockerfile -t mvplayer-ci .
+# 使用前把下面三个 CHANGE_ME 换成你的镜像仓库信息（或在流水线「参数设置」里定义同名变量）：
+#   REGISTRY_REPOSITORY  例：registry.cn-hangzhou.aliyuncs.com/your-namespace
+#   REGISTRY_USER
+#   REGISTRY_PASSWORD
 
 version: '1.0'
 name: ci
 displayName: CI（自定义镜像）
 
-# 构建慢/超时：任务超时放宽到 90 分钟（上限 1440）
+variables:
+  REGISTRY_REPOSITORY: registry.cn-hangzhou.aliyuncs.com/CHANGE_ME
+  REGISTRY_USER: CHANGE_ME
+  REGISTRY_PASSWORD: CHANGE_ME
+
 strategy:
   blocking: false
   stepTimeout: 90
