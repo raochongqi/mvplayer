@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"image/color"
 	"image/png"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 	"fyne.io/fyne/v2/test"
 
 	"mvplayer/internal/layout"
+	"mvplayer/internal/player"
 )
 
 const mediaDir = "/root/mvPlayer/.dsh-tmp/ff/media"
@@ -30,6 +32,9 @@ func newTestApp(t *testing.T) (*App, fyne.Window) {
 	w := test.NewWindow(nil)
 	w.Resize(fyne.NewSize(1440, 900))
 	app := New(a, w, filepath.Join(t.TempDir(), "history.json"))
+	// Unit tests use the deterministic fake engine; the real-mpv test swaps in
+	// player.NewDefault explicitly.
+	app.SetFactory(func() (player.Player, error) { return &fakeVideo{base: color.NRGBA{R: 40, G: 90, B: 160, A: 255}}, nil })
 	t.Cleanup(app.Stop)
 	return app, w
 }

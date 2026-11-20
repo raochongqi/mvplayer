@@ -24,6 +24,7 @@ func TestRealMpvFramesIntoPanes(t *testing.T) {
 	w := test.NewWindow(nil)
 	w.Resize(fyne.NewSize(1440, 900))
 	app := New(a, w, filepath.Join(t.TempDir(), "history.json"))
+	app.SetFactory(player.NewDefault)
 	defer app.Stop()
 
 	file := "/root/mvPlayer/.dsh-tmp/ff/media/hd1080.mkv"
