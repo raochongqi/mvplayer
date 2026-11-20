@@ -1,0 +1,40 @@
+# Gitee Go 流水线：用自定义镜像跑 vet + 测试 + 构建。
+#
+# 说明：
+#   build@docker 插件会按 packaging/ci/Dockerfile 构建镜像并推送到 registry；
+#   Dockerfile 里已经包含 `go vet`、两套 `go test` 和 `go build`，
+#   所以测试失败 = 镜像构建失败 = 流水线红。
+#
+# 使用前需要在仓库「流水线 → 变量/凭证」里配置：
+#   REGISTRY_REPOSITORY  例如 registry.cn-hangzhou.aliyuncs.com/your-ns
+#   REGISTRY_USER        镜像仓库用户名
+#   REGISTRY_PASSWORD    镜像仓库密码/令牌
+# 若暂时没有镜像仓库，可把该步骤换成本机执行：
+#   docker build -f packaging/ci/Dockerfile -t mvplayer-ci .
+
+version: '1.0'
+name: ci
+displayName: CI（自定义镜像）
+
+triggers:
+  push:
+    branches:
+      include:
+        - main
+
+stages:
+  - stage:
+      name: test
+      displayName: 测试与构建
+      strategy: naturally
+      trigger: auto
+      steps:
+        - step: build@docker
+          name: docker_ci
+          displayName: 构建镜像并运行测试
+          repository: ${REGISTRY_REPOSITORY}
+          username: ${REGISTRY_USER}
+          password: ${REGISTRY_PASSWORD}
+          tag: mvplayer-ci:${GITEE_PIPELINE_BUILD_NUMBER}
+          dockerfile: ./packaging/ci/Dockerfile
+          isCache: false

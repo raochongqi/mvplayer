@@ -26,3 +26,11 @@ makensis packaging/windows/installer.nsi
 
 - 安装后：`mvplayer` 约 30 MiB；Windows 还需 `libmpv-2.dll`。
 - 安装包：exe 经 LZMA 后约 9–11 MiB，libmpv 约 25–30 MiB，NSIS 安装包预计 38–45 MiB。
+
+
+## CI
+
+- GitHub Actions：`.github/workflows/ci.yml`（Linux vet + 两套测试 + libmpv 构建；Windows mingw 交叉编译）。
+- Gitee Go：`.workflow/ci.yml` + `packaging/ci/Dockerfile`。流水线用 `build@docker` 构建自定义镜像，Dockerfile 里依次跑 `go vet`、两套 `go test`、`go build -tags mpv`，测试失败即构建失败。
+  需要在流水线变量里配置 `REGISTRY_REPOSITORY` / `REGISTRY_USER` / `REGISTRY_PASSWORD`（镜像仓库）。
+  没有镜像仓库时可直接本地验证：`docker build -f packaging/ci/Dockerfile -t mvplayer-ci .`
