@@ -33,6 +33,8 @@ func main() {
 	file := flag.String("file", "", "mkv used for every pane")
 	n := flag.Int("n", 4, "number of panes")
 	rate := flag.Float64("rate", 1.0, "initial rate for every pane")
+	rw := flag.Int("rw", 640, "render width for the frame-cost probe")
+	rh := flag.Int("rh", 360, "render height for the frame-cost probe")
 	flag.Parse()
 	if *file == "" {
 		fmt.Fprintln(os.Stderr, "usage: spike -file x.mkv [-n 4] [-rate 1]")
@@ -116,6 +118,21 @@ func main() {
 	time.Sleep(400 * time.Millisecond)
 	for i, e := range engines {
 		fmt.Printf("seeked pane=%d pos=%dms\n", i, e.Position())
+	}
+
+	// frame render cost: one render per pane, repeated
+	startRender := time.Now()
+	frames := 0
+	for rep := 0; rep < 15; rep++ {
+		for _, e := range engines {
+			if _, ok := e.RenderFrame(*rw, *rh); ok {
+				frames++
+			}
+		}
+	}
+	if frames > 0 {
+		ms := float64(time.Since(startRender).Milliseconds()) / float64(frames)
+		fmt.Printf("render %dx%d frames=%d avg=%.2fms/frame\n", *rw, *rh, frames, ms)
 	}
 
 	u1, s1 := cpuTicks()

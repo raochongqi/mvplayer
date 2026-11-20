@@ -8,6 +8,8 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
+
+	"mvplayer/internal/player"
 )
 
 // SeekBar is the thin draggable progress bar drawn above the pane HUD.
@@ -123,6 +125,7 @@ type Pane struct {
 	stepSeconds int
 	baseRate    float64
 	pendingSeek int64
+	pl          player.Player
 	playing     bool
 }
 

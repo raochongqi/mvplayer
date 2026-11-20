@@ -106,3 +106,32 @@ func TestHistoryRestoresPosition(t *testing.T) {
 		t.Fatalf("restored position=%d want ~120000", got)
 	}
 }
+
+func TestRemoveMiddlePaneKeepsOthersWired(t *testing.T) {
+	app, _ := newTestApp(t)
+	for _, f := range testFiles() {
+		app.AddFile(f)
+	}
+	p2, p3 := app.panes[2], app.panes[3]
+	_ = p2.pl.Seek(5_000)
+	_ = p3.pl.Seek(7_000)
+	app.removePane(app.panes[1])
+	if p2.pl == nil || p3.pl == nil {
+		t.Fatal("removal detached another pane")
+	}
+	app.nudgePane(p2, 10_000)
+	if got := p2.pl.Position(); got != 15_000 {
+		t.Fatalf("pane2 pos=%d want 15000", got)
+	}
+	if got := p3.pl.Position(); got != 7_000 {
+		t.Fatalf("pane3 pos=%d want 7000 (must not move)", got)
+	}
+	if app.ctrl.Len() != 3 {
+		t.Fatalf("controller len=%d want 3", app.ctrl.Len())
+	}
+	// the empty slot can take a new file and bind to that pane only
+	app.AddFile(testFiles()[1])
+	if app.panes[1].pl == nil || app.panes[1].pl == p2.pl {
+		t.Fatal("new file not bound to the emptied pane")
+	}
+}

@@ -91,12 +91,18 @@ func NewEngine() (*Engine, error) {
 	if h == nil {
 		return nil, errors.New("player: mpv_create failed")
 	}
-	// The render API needs the libmpv video output.
-	vo := C.CString("vo")
-	voVal := C.CString("libmpv")
-	C.mpv_set_option_string(h, vo, voVal)
-	C.free(unsafe.Pointer(vo))
-	C.free(unsafe.Pointer(voVal))
+	// The render API needs the libmpv video output; keep audio pitch stable at
+	// any speed (requirement: 0.5x–8x per pane).
+	for _, kv := range [][2]string{
+		{"vo", "libmpv"},
+		{"audio-pitch-correction", "yes"},
+		{"hwdec", "auto-safe"},
+	} {
+		k, v := C.CString(kv[0]), C.CString(kv[1])
+		C.mpv_set_option_string(h, k, v)
+		C.free(unsafe.Pointer(k))
+		C.free(unsafe.Pointer(v))
+	}
 	if rc := C.mpv_initialize(h); rc < 0 {
 		C.mpv_terminate_destroy(h)
 		return nil, fmt.Errorf("player: mpv_initialize failed: %d", int(rc))

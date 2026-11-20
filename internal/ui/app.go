@@ -203,6 +203,7 @@ func (a *App) AddFile(path string) {
 	a.players = append(a.players, eng)
 	a.ctrl.Add(eng)
 	pane := a.panes[idx]
+	pane.pl = eng
 	pane.SetFile(path)
 	pane.SetRateBadge(1.0)
 	pane.SetPlaying(true)
@@ -256,20 +257,30 @@ func (a *App) refreshLayoutButtons() {
 }
 
 func (a *App) removePane(p *Pane) {
-	i := p.Index
-	if i < 0 || i >= len(a.panes) || a.panes[i] != p {
-		return
-	}
-	// remove the player at the same logical slot
-	if i < len(a.players) {
-		_ = a.players[i].Close()
-		a.ctrl.RemoveAt(i)
-		a.players = append(a.players[:i], a.players[i+1:]...)
+	if p.pl != nil {
+		_ = p.pl.Close()
+		a.ctrl.RemoveAt(a.playerIndex(p.pl))
+		for i, pl := range a.players {
+			if pl == p.pl {
+				a.players = append(a.players[:i], a.players[i+1:]...)
+				break
+			}
+		}
+		p.pl = nil
 	}
 	p.Clear()
 	a.stage.SetPanes(a.panes[:a.countPanes()])
 	a.relayoutForCount()
 	a.refreshLayoutButtons()
+}
+
+func (a *App) playerIndex(pl player.Player) int {
+	for i, q := range a.players {
+		if q == pl {
+			return i
+		}
+	}
+	return -1
 }
 
 func (a *App) setPaneRate(p *Pane, rate float64) {
@@ -279,46 +290,45 @@ func (a *App) setPaneRate(p *Pane, rate float64) {
 
 // applyRate pushes clamp(base+overlay) to the engine and the badge.
 func (a *App) applyRate(p *Pane) {
-	i := a.indexOf(p)
-	if i < 0 || i >= len(a.players) {
+	if p.pl == nil {
 		return
 	}
 	eff := player.ClampRate(p.baseRate + a.overlay)
-	_ = a.players[i].SetRate(eff)
+	_ = p.pl.SetRate(eff)
 	p.SetRateBadge(eff)
 }
 
 func (a *App) togglePane(p *Pane) {
-	if i := a.indexOf(p); i >= 0 && i < len(a.players) {
-		pl := a.players[i]
-		if pl.Paused() {
-			_ = pl.Play()
-		} else {
-			_ = pl.Pause()
-		}
+	if p.pl == nil {
+		return
+	}
+	if p.pl.Paused() {
+		_ = p.pl.Play()
+	} else {
+		_ = p.pl.Pause()
 	}
 }
 
 func (a *App) nudgePane(p *Pane, ms int) {
-	if i := a.indexOf(p); i >= 0 && i < len(a.players) {
-		pl := a.players[i]
-		target := pl.Position() + int64(ms)
-		if target < 0 {
-			target = 0
-		}
-		if d := pl.Duration(); d > 0 && target > d {
-			target = d
-		}
-		_ = pl.Seek(target)
+	if p.pl == nil {
+		return
 	}
+	target := p.pl.Position() + int64(ms)
+	if target < 0 {
+		target = 0
+	}
+	if d := p.pl.Duration(); d > 0 && target > d {
+		target = d
+	}
+	_ = p.pl.Seek(target)
 }
 
 func (a *App) seekPaneAbsolute(p *Pane, f float32) {
-	if i := a.indexOf(p); i >= 0 && i < len(a.players) {
-		pl := a.players[i]
-		if d := pl.Duration(); d > 0 {
-			_ = pl.Seek(int64(float32(d) * f))
-		}
+	if p.pl == nil {
+		return
+	}
+	if d := p.pl.Duration(); d > 0 {
+		_ = p.pl.Seek(int64(float32(d) * f))
 	}
 }
 
@@ -395,11 +405,11 @@ func (a *App) persistHistory() {
 	if !a.settings.History {
 		return
 	}
-	for i, p := range a.panes {
-		if p.Path == "" || i >= len(a.players) {
+	for _, p := range a.panes {
+		if p.Path == "" || p.pl == nil {
 			continue
 		}
-		pl := a.players[i]
+		pl := p.pl
 		st, err := fileStat(p.Path)
 		if err != nil {
 			continue
@@ -559,11 +569,11 @@ func (a *App) renderLoop() {
 			return
 		case <-t.C:
 		}
-		for i, p := range a.panes {
-			if p.Path == "" || i >= len(a.players) {
+		for _, p := range a.panes {
+			if p.Path == "" || p.pl == nil {
 				continue
 			}
-			vr, ok := a.players[i].(player.VideoRenderer)
+			vr, ok := p.pl.(player.VideoRenderer)
 			if !ok {
 				continue
 			}
@@ -595,11 +605,11 @@ func (a *App) tick() {
 // stepOnce is the 5 Hz HUD/status pass; separated so tests can drive it.
 func (a *App) stepOnce() {
 	a.refreshStatus()
-	for i, p := range a.panes {
-		if p.Path == "" || i >= len(a.players) {
+	for _, p := range a.panes {
+		if p.Path == "" || p.pl == nil {
 			continue
 		}
-		pl := a.players[i]
+		pl := p.pl
 		if p.pendingSeek > 0 && pl.Duration() > 0 {
 			_ = pl.Seek(p.pendingSeek)
 			p.pendingSeek = 0
