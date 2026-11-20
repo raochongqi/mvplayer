@@ -583,7 +583,8 @@ func (a *App) renderLoop() {
 				continue
 			}
 			if img, ok := vr.RenderFrame(w, h); ok && img != nil {
-				p.SetFrame(img)
+				pane := p
+				fyne.Do(func() { pane.SetFrame(img) })
 			}
 		}
 	}

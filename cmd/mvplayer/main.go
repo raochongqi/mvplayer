@@ -13,6 +13,7 @@ import (
 func main() {
 	a := app.NewWithID("io.github.mvplayer")
 	a.Settings().SetTheme(ui.NewTheme())
+	a.SetIcon(ui.Icon)
 
 	w := a.NewWindow("mvPlayer")
 	w.Resize(fyne.NewSize(1280, 800))
