@@ -213,9 +213,22 @@ func (a *App) AddFile(path string) {
 		}
 	}
 	_ = eng.Play()
-	a.stage.SetPanes(a.panes[:a.countPanes()])
+	a.stage.SetPanes(a.visiblePanes())
 	a.relayoutForCount()
 	a.refreshLayoutButtons()
+}
+
+// visiblePanes returns the filled panes in display order. The stage must only
+// receive those: slicing a.panes[:n] would drop later filled panes whenever an
+// earlier slot was emptied.
+func (a *App) visiblePanes() []*Pane {
+	out := make([]*Pane, 0, 4)
+	for _, p := range a.panes {
+		if p.Path != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func (a *App) countPanes() int {
@@ -269,7 +282,7 @@ func (a *App) removePane(p *Pane) {
 		p.pl = nil
 	}
 	p.Clear()
-	a.stage.SetPanes(a.panes[:a.countPanes()])
+	a.stage.SetPanes(a.visiblePanes())
 	a.relayoutForCount()
 	a.refreshLayoutButtons()
 }
@@ -578,9 +591,19 @@ func (a *App) renderLoop() {
 				continue
 			}
 			sz := p.Root.Size()
-			w, h := int(sz.Width), int(sz.Height)
+			scale := float32(1)
+			if c := fyne.CurrentApp().Driver().CanvasForObject(p.Root); c != nil {
+				scale = c.Scale()
+			}
+			w, h := int(sz.Width*scale), int(sz.Height*scale)
 			if w < 32 || h < 32 {
 				continue
+			}
+			if w > 1920 {
+				w = 1920
+			}
+			if h > 1080 {
+				h = 1080
 			}
 			if img, ok := vr.RenderFrame(w, h); ok && img != nil {
 				pane := p
