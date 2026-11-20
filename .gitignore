@@ -1,0 +1,6 @@
+# 临时与构建产物（不提交）
+.dsh-tmp/
+build/
+docs/evidence/
+.docs/evidence/
+*.log

@@ -1,0 +1,14 @@
+# DESIGN.lock — tech-stack-research
+
+```yaml
+design: .docs/design/tech-stack-research/approved.png
+sha256: c84f937833128751656d8d5d9b185303bfaa065f5efb7284173e9886b4e33163
+viewport: 1440x900
+dpr: 1
+theme: dark-neutral (#17181A bg / #1A1C1F chrome / #1E2023 pane / #2A2D31 line / #D7D9DD text / #8A8F98 muted / #5B8CFF accent)
+font: system-ui / Noto Sans CJK SC
+fixture: 4-up grid, 4 mkv, toolbar with all controls visible
+approved_at: 2026-11-20T17:04
+approved_by: user
+approved_quote: 「1可以，2装，要能过编译」
+```
