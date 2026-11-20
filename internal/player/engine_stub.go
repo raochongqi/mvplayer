@@ -57,7 +57,7 @@ func (s *stub) Seek(ms int64) error {
 	return nil
 }
 func (s *stub) Position() int64 { s.mu.Lock(); defer s.mu.Unlock(); return s.current() }
-func (s *stub) Duration() int64 { return 0 }
+func (s *stub) Duration() int64 { return 600_000 }
 func (s *stub) SetRate(r float64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

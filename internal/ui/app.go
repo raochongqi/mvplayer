@@ -3,6 +3,8 @@ package ui
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -44,6 +46,8 @@ type App struct {
 	root       *fyne.Container
 	statusLbl  *widget.Label
 	factory    func() (player.Player, error)
+	settings   Settings
+	settingsPath string
 	stop       chan struct{}
 	stopOnce   sync.Once
 }
@@ -67,6 +71,8 @@ func New(a fyne.App, w fyne.Window, histPath string) *App {
 	if s, err := history.Load(histPath); err == nil {
 		app.hist = s
 	}
+	app.settingsPath = filepath.Join(filepath.Dir(histPath), "settings.json")
+	app.settings = LoadSettings(app.settingsPath)
 	for i := 0; i < 4; i++ {
 		pane := NewPane(i, PaneOptions{
 			OnRemove: app.removePane,
@@ -76,6 +82,8 @@ func New(a fyne.App, w fyne.Window, histPath string) *App {
 			OnNudge:  app.nudgePane,
 		})
 		pane.SetSeekHandler(app.seekPaneAbsolute)
+		pane.SetRateChoices(app.settings.rateChoices())
+		pane.SetStepChoices(app.settings.stepChoices())
 		app.panes = append(app.panes, pane)
 	}
 	app.stage.SetPanes(app.panes)
@@ -128,9 +136,7 @@ func (a *App) buildToolbar() fyne.CanvasObject {
 	minusBtn := newChip("−", func() { a.nudgeAllRates(-a.overlayStep) })
 	plusBtn := newChip("＋", func() { a.nudgeAllRates(a.overlayStep) })
 
-	settingsBtn := newChip("⚙", func() {
-		dialog.ShowInformation("设置", "自定义倍速/档位与历史开关将在下一版接入。", a.win)
-	})
+	settingsBtn := newChip("⚙", a.showSettings)
 
 	vsep := func() fyne.CanvasObject { return container.NewGridWrap(fyne.NewSize(1, 22), canvas.NewRectangle(ColorLine)) }
 	left := container.NewHBox(openBtn, histBtn, vsep(), a.layoutBox)
@@ -200,6 +206,11 @@ func (a *App) AddFile(path string) {
 	pane.SetFile(path)
 	pane.SetRateBadge(1.0)
 	pane.SetPlaying(true)
+	if st, err := fileStat(path); err == nil {
+		if e, ok := a.hist.Get(path, st.size, st.mtime); ok && e.PositionMs > 0 {
+			pane.pendingSeek = e.PositionMs
+		}
+	}
 	_ = eng.Play()
 	a.stage.SetPanes(a.panes[:a.countPanes()])
 	a.relayoutForCount()
@@ -381,6 +392,9 @@ func (a *App) rateLists() (string, string) {
 }
 
 func (a *App) persistHistory() {
+	if !a.settings.History {
+		return
+	}
 	for i, p := range a.panes {
 		if p.Path == "" || i >= len(a.players) {
 			continue
@@ -403,21 +417,86 @@ func (a *App) persistHistory() {
 	_ = a.hist.Save(a.histPath)
 }
 
+func (a *App) showSettings() {
+	rates := widget.NewEntry()
+	rates.SetText(strings.Join(a.settings.Rates, ", "))
+	steps := widget.NewEntry()
+	steps.SetText(strings.Join(a.settings.Steps, ", "))
+	hist := widget.NewCheck("记录播放历史", nil)
+	hist.SetChecked(a.settings.History)
+	form := widget.NewForm(
+		widget.NewFormItem("倍速列表", rates),
+		widget.NewFormItem("跳转档位", steps),
+		widget.NewFormItem("历史", hist),
+	)
+	dialog.ShowCustomConfirm("设置", "保存", "取消", form, func(ok bool) {
+		if !ok {
+			return
+		}
+		next := Settings{
+			Rates:   splitList(rates.Text),
+			Steps:   splitList(steps.Text),
+			History: hist.Checked,
+		}
+		if len(next.Rates) == 0 {
+			next.Rates = defaultSettings.Rates
+		}
+		if len(next.Steps) == 0 {
+			next.Steps = defaultSettings.Steps
+		}
+		a.settings = next
+		_ = a.settings.Save(a.settingsPath)
+		for _, p := range a.panes {
+			p.SetRateChoices(next.rateChoices())
+			p.SetStepChoices(next.stepChoices())
+		}
+	}, a.win)
+}
+
+func splitList(s string) []string {
+	fields := strings.FieldsFunc(s, func(r rune) bool { return r == ',' || r == '，' || r == ' ' })
+	out := make([]string, 0, len(fields))
+	for _, f := range fields {
+		f = strings.TrimSpace(f)
+		if f != "" {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
 func (a *App) showHistory() {
 	if len(a.hist.Entries) == 0 {
 		dialog.ShowInformation("历史", "还没有播放记录。", a.win)
 		return
 	}
-	var items []string
+	entries := make([]history.Entry, 0, len(a.hist.Entries))
 	for _, e := range a.hist.Entries {
-		items = append(items, fmt.Sprintf("%s　%s", shortName(e.Path), clock(e.PositionMs)))
+		entries = append(entries, e)
 	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].UpdatedAt > entries[j].UpdatedAt })
 	list := widget.NewList(
-		func() int { return len(items) },
+		func() int { return len(entries) },
 		func() fyne.CanvasObject { return widget.NewLabel("") },
-		func(i widget.ListItemID, o fyne.CanvasObject) { o.(*widget.Label).SetText(items[i]) },
+		func(i widget.ListItemID, o fyne.CanvasObject) {
+			if i < len(entries) {
+				o.(*widget.Label).SetText(fmt.Sprintf("%s　%s", shortName(entries[i].Path), clock(entries[i].PositionMs)))
+			}
+		},
 	)
-	dialog.ShowCustom("历史播放", "关闭", list, a.win)
+	var dlg *dialog.CustomDialog
+	list.OnSelected = func(i widget.ListItemID) {
+		list.UnselectAll()
+		if i >= 0 && i < len(entries) {
+			a.AddFile(entries[i].Path)
+			if dlg != nil {
+				dlg.Hide()
+			}
+		}
+	}
+	dlg = dialog.NewCustom("历史播放", "关闭", list, a.win)
+	dlg.Resize(fyne.NewSize(640, 420))
+	dlg.Show()
 }
 
 func (a *App) onKey(ev *fyne.KeyEvent) {
@@ -508,16 +587,25 @@ func (a *App) tick() {
 		case <-a.stop:
 			return
 		case <-t.C:
+			a.stepOnce()
 		}
-		a.refreshStatus()
-		for i, p := range a.panes {
-			if p.Path == "" || i >= len(a.players) {
-				continue
-			}
-			pl := a.players[i]
-			p.SetProgress(pl.Position(), pl.Duration())
-			p.SetPlaying(!pl.Paused())
+	}
+}
+
+// stepOnce is the 5 Hz HUD/status pass; separated so tests can drive it.
+func (a *App) stepOnce() {
+	a.refreshStatus()
+	for i, p := range a.panes {
+		if p.Path == "" || i >= len(a.players) {
+			continue
 		}
+		pl := a.players[i]
+		if p.pendingSeek > 0 && pl.Duration() > 0 {
+			_ = pl.Seek(p.pendingSeek)
+			p.pendingSeek = 0
+		}
+		p.SetProgress(pl.Position(), pl.Duration())
+		p.SetPlaying(!pl.Paused())
 	}
 }
 

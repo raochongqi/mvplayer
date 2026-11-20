@@ -122,6 +122,7 @@ type Pane struct {
 
 	stepSeconds int
 	baseRate    float64
+	pendingSeek int64
 	playing     bool
 }
 
@@ -197,6 +198,18 @@ func NewPane(index int, opts PaneOptions) *Pane {
 	overlay := container.NewBorder(topRow, hudBox, nil, nil, nil)
 	p.Root = container.NewStack(p.surface, p.image, overlay)
 	return p
+}
+
+// SetRateChoices replaces the speed dropdown entries.
+func (p *Pane) SetRateChoices(list []string) {
+	p.rateSel.Options = list
+	p.rateSel.Refresh()
+}
+
+// SetStepChoices replaces the seek-step dropdown entries.
+func (p *Pane) SetStepChoices(list []string) {
+	p.stepSel.Options = list
+	p.stepSel.Refresh()
 }
 
 // SetFile shows a file in this pane.

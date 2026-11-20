@@ -11,6 +11,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
 
+	"mvplayer/internal/history"
 	"mvplayer/internal/player"
 )
 
@@ -84,5 +85,24 @@ func TestFramesPaintIntoPanes(t *testing.T) {
 	defer f.Close()
 	if err := png.Encode(f, w.Canvas().Capture()); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func historyEntry(path string, size, mtime, pos int64) history.Entry {
+	return history.Entry{Path: path, Size: size, ModTime: mtime, PositionMs: pos, DurationMs: 600000, UpdatedAt: 1}
+}
+
+func TestHistoryRestoresPosition(t *testing.T) {
+	app, _ := newTestApp(t)
+	file := testFiles()[0]
+	st, err := fileStat(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	app.hist.Put(historyEntry(file, st.size, st.mtime, 120_000))
+	app.AddFile(file)
+	app.stepOnce()
+	if got := app.players[0].Position(); got < 119_000 || got > 121_000 {
+		t.Fatalf("restored position=%d want ~120000", got)
 	}
 }
