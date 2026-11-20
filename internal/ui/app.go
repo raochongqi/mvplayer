@@ -35,7 +35,7 @@ type App struct {
 	overlay     float64
 	overlayStep float64
 	globalStep  int
-	layoutBtns map[layout.Layout]*chipButton
+	layoutBtns map[layout.Layout]*layoutButton
 	layoutBox  *fyne.Container
 	pauseBtn   *chipButton
 	speedSel   *widget.Select
@@ -60,7 +60,7 @@ func New(a fyne.App, w fyne.Window, histPath string) *App {
 		overlay:     0,
 		overlayStep: 0.25,
 		globalStep:  10,
-		layoutBtns: map[layout.Layout]*chipButton{},
+		layoutBtns: map[layout.Layout]*layoutButton{},
 		stop:       make(chan struct{}),
 		factory:    player.NewDefault,
 	}
@@ -100,15 +100,11 @@ func (a *App) buildToolbar() fyne.CanvasObject {
 	histBtn := newChip("≡ 历史", a.showHistory)
 
 	a.layoutBox = container.NewHBox()
-	labels := map[layout.Layout]string{
-		layout.One: "1", layout.TwoV: "∥", layout.TwoH: "＝",
-		layout.ThreeL: "◧", layout.ThreeR: "◨", layout.ThreeQ: "▣", layout.Four: "▦",
-	}
 	for _, l := range layout.All {
 		l := l
-		b := newChip(labels[l], func() { a.setLayout(l) })
+		b := newLayoutButton(l, func() { a.setLayout(l) })
 		a.layoutBtns[l] = b
-		a.layoutBox.Add(container.NewGridWrap(fyne.NewSize(30, 26), b))
+		a.layoutBox.Add(b)
 	}
 
 	prevBtn := newChip("«", func() { a.seekAll(-int64(a.globalStep * 1000)) })
