@@ -293,3 +293,46 @@ func (p *Pane) seekTo(f float32) {
 // OnSeekAt is set by the app to perform an absolute seek.
 func (p *Pane) SetSeekHandler(fn func(*Pane, float32)) { p.onSeekAt = fn }
 
+
+// emptySlot is the dashed placeholder shown for a spare cell or an empty app.
+type emptySlot struct {
+	widget.BaseWidget
+	label *widget.Label
+	box   *canvas.Rectangle
+}
+
+func newEmptySlot() *emptySlot {
+	e := &emptySlot{label: widget.NewLabel("空位 · 拖入视频")}
+	e.label.Alignment = fyne.TextAlignCenter
+	e.label.TextStyle = fyne.TextStyle{Italic: true}
+	e.label.Importance = widget.LowImportance
+	e.box = canvas.NewRectangle(ColorPane)
+	e.box.StrokeColor = ColorLine
+	e.box.StrokeWidth = 1
+	e.box.CornerRadius = 4
+	e.ExtendBaseWidget(e)
+	return e
+}
+
+func (e *emptySlot) CreateRenderer() fyne.WidgetRenderer {
+	return &emptyRenderer{e: e, objects: []fyne.CanvasObject{e.box, e.label}}
+}
+
+type emptyRenderer struct {
+	e       *emptySlot
+	objects []fyne.CanvasObject
+}
+
+func (r *emptyRenderer) Layout(size fyne.Size) {
+	r.e.box.Resize(size)
+	r.e.label.Resize(size)
+	r.e.label.Move(fyne.NewPos(0, size.Height/2-8))
+}
+func (r *emptyRenderer) MinSize() fyne.Size { return fyne.NewSize(120, 80) }
+func (r *emptyRenderer) Refresh() {
+	r.e.box.FillColor = ColorPane
+	r.e.box.Refresh()
+	r.e.label.Refresh()
+}
+func (r *emptyRenderer) Objects() []fyne.CanvasObject { return r.objects }
+func (r *emptyRenderer) Destroy()                     {}

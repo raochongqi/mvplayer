@@ -131,3 +131,30 @@ func TestCaptureScreenshots(t *testing.T) {
 	app.setLayout(layout.ThreeQ)
 	save("impl-3q.png")
 }
+
+func TestCaptureEmptyAndThreePaneStates(t *testing.T) {
+	dir := os.Getenv("MVPLAYER_EVIDENCE")
+	if dir == "" {
+		dir = "/root/mvPlayer/.docs/evidence/tech-stack-research"
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	app, w := newTestApp(t)
+	save := func(name string) {
+		f, err := os.Create(filepath.Join(dir, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+		if err := png.Encode(f, w.Canvas().Capture()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	save("impl-empty.png")
+	for _, f := range testFiles()[:3] {
+		app.AddFile(f)
+	}
+	app.setLayout(layout.ThreeQ)
+	save("impl-3q-empty-slot.png")
+}

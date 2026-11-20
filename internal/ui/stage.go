@@ -57,6 +57,7 @@ type Stage struct {
 	ratios layout.Ratios
 	vs     *splitter
 	hs     *splitter
+	empty  *emptySlot
 }
 
 // NewStage creates a stage with no panes.
@@ -64,6 +65,7 @@ func NewStage() *Stage {
 	s := &Stage{lay: layout.One, ratios: layout.DefaultRatios()}
 	s.vs = newSplitter(true, func(d fyne.Delta) { s.drag(layout.SplitVertical, d) })
 	s.hs = newSplitter(false, func(d fyne.Delta) { s.drag(layout.SplitHorizontal, d) })
+	s.empty = newEmptySlot()
 	s.ExtendBaseWidget(s)
 	return s
 }
@@ -129,7 +131,7 @@ func (r *stageRenderer) rebuild() {
 	for _, p := range r.stage.panes {
 		r.objects = append(r.objects, p.Root)
 	}
-	r.objects = append(r.objects, r.stage.vs, r.stage.hs)
+	r.objects = append(r.objects, r.stage.vs, r.stage.hs, r.stage.empty)
 }
 
 func hasV(l layout.Layout) bool {
@@ -150,7 +152,7 @@ func hasH(l layout.Layout) bool {
 
 func (r *stageRenderer) Layout(size fyne.Size) {
 	r.bg.Resize(size)
-	if len(r.objects) != 1+len(r.stage.panes)+2 {
+	if len(r.objects) != 1+len(r.stage.panes)+3 {
 		r.rebuild()
 	}
 	rects := layout.Compute(r.stage.lay, size.Width, size.Height, r.stage.ratios, layout.Gap)
@@ -162,6 +164,23 @@ func (r *stageRenderer) Layout(size fyne.Size) {
 		} else {
 			p.Root.Hide()
 		}
+	}
+	// empty slot: whole area when nothing is open, otherwise the spare cell
+	if len(r.stage.panes) == 0 {
+		r.stage.empty.Move(fyne.NewPos(0, 0))
+		r.stage.empty.Resize(size)
+		r.stage.empty.Show()
+	} else if cell, ok := layout.EmptyCell(r.stage.lay, size.Width, size.Height, r.stage.ratios, layout.Gap); ok {
+		r.stage.empty.Move(fyne.NewPos(cell.X, cell.Y))
+		r.stage.empty.Resize(fyne.NewSize(cell.W, cell.H))
+		r.stage.empty.Show()
+	} else if len(rects) > len(r.stage.panes) {
+		cell := rects[len(r.stage.panes)]
+		r.stage.empty.Move(fyne.NewPos(cell.X, cell.Y))
+		r.stage.empty.Resize(fyne.NewSize(cell.W, cell.H))
+		r.stage.empty.Show()
+	} else {
+		r.stage.empty.Hide()
 	}
 	w, h := size.Width, size.Height
 	if hasV(r.stage.lay) {

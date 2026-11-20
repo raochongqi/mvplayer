@@ -132,6 +132,20 @@ func Compute(l Layout, w, h float32, r Ratios, gap float32) []Rect {
 	return nil
 }
 
+// EmptyCell returns the rectangle of the unused cell in ThreeQ (the
+// bottom-right quadrant). Other layouts have no empty cell.
+func EmptyCell(l Layout, w, h float32, r Ratios, gap float32) (Rect, bool) {
+	if l != ThreeQ {
+		return Rect{}, false
+	}
+	r = r.Clamp()
+	innerW := w - gap
+	innerH := h - gap
+	x := innerW*r.X + gap
+	y := innerH*r.Y + gap
+	return Rect{x, y, innerW - innerW*r.X, innerH - innerH*r.Y}, true
+}
+
 // Splitter identifies a draggable divider.
 type Splitter int
 
