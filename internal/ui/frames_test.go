@@ -1,0 +1,88 @@
+package ui
+
+import (
+	"image"
+	"image/color"
+	"image/png"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/test"
+
+	"mvplayer/internal/player"
+)
+
+// fakeVideo paints a coloured gradient so a screenshot proves frames reach
+// the canvas without needing libmpv in unit tests.
+type fakeVideo struct {
+	pos, dur int64
+	paused   bool
+	rate     float64
+	base     color.NRGBA
+}
+
+func (f *fakeVideo) Open(string) error          { return nil }
+func (f *fakeVideo) Close() error               { return nil }
+func (f *fakeVideo) Play() error                { f.paused = false; return nil }
+func (f *fakeVideo) Pause() error               { f.paused = true; return nil }
+func (f *fakeVideo) Paused() bool               { return f.paused }
+func (f *fakeVideo) Seek(ms int64) error        { f.pos = ms; return nil }
+func (f *fakeVideo) Position() int64            { return f.pos }
+func (f *fakeVideo) Duration() int64            { return 600000 }
+func (f *fakeVideo) SetRate(r float64) error    { f.rate = r; return nil }
+func (f *fakeVideo) Rate() float64              { return f.rate }
+func (f *fakeVideo) RenderFrame(w, h int) (image.Image, bool) {
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			k := uint8((x + y) * 255 / (w + h))
+			img.SetRGBA(x, y, color.RGBA{R: f.base.R, G: k, B: f.base.B, A: 255})
+		}
+	}
+	return img, true
+}
+
+func TestFramesPaintIntoPanes(t *testing.T) {
+	a := test.NewApp()
+	a.Settings().SetTheme(NewTheme())
+	w := test.NewWindow(nil)
+	w.Resize(fyne.NewSize(1440, 900))
+
+	app := New(a, w, filepath.Join(t.TempDir(), "history.json"))
+	defer app.Stop()
+	colors := []color.NRGBA{{200, 0, 0, 255}, {0, 60, 200, 255}, {0, 160, 90, 255}, {210, 150, 0, 255}}
+	i := 0
+	app.SetFactory(func() (player.Player, error) {
+		f := &fakeVideo{base: colors[i%len(colors)]}
+		i++
+		return f, nil
+	})
+	for _, f := range testFiles() {
+		app.AddFile(f)
+	}
+	// drive one render pass synchronously
+	for idx, p := range app.panes {
+		if p.Path == "" || idx >= len(app.players) {
+			continue
+		}
+		vr := app.players[idx].(player.VideoRenderer)
+		sz := p.Root.Size()
+		if img, ok := vr.RenderFrame(int(sz.Width), int(sz.Height)); ok {
+			p.SetFrame(img)
+		}
+	}
+	dir := os.Getenv("MVPLAYER_EVIDENCE")
+	if dir == "" {
+		dir = "/root/mvPlayer/.docs/evidence/tech-stack-research"
+	}
+	f, err := os.Create(filepath.Join(dir, "impl-frames.png"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if err := png.Encode(f, w.Canvas().Capture()); err != nil {
+		t.Fatal(err)
+	}
+}

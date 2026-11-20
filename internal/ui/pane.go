@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"image"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -120,6 +121,7 @@ type Pane struct {
 	onSeekAt func(*Pane, float32)
 
 	stepSeconds int
+	baseRate    float64
 	playing     bool
 }
 
@@ -137,6 +139,7 @@ func NewPane(index int, opts PaneOptions) *Pane {
 	p := &Pane{
 		Index:       index,
 		stepSeconds: 10,
+		baseRate:    1,
 		onRemove:    opts.OnRemove,
 		onRate:      opts.OnRate,
 		onStep:      opts.OnStep,
@@ -210,6 +213,7 @@ func (p *Pane) Clear() {
 	p.badge.SetText("1.0×")
 	p.timeLbl.SetText("00:00:00 / 00:00:00")
 	p.seek.SetFraction(0)
+	p.image.Hide()
 	p.playing = false
 	p.playBtn.SetText("▶")
 }
@@ -239,6 +243,18 @@ func (p *Pane) SetPlaying(playing bool) {
 
 // Image exposes the frame surface for the renderer.
 func (p *Pane) Image() *canvas.Image { return p.image }
+
+// SetFrame paints one decoded video frame.
+func (p *Pane) SetFrame(img image.Image) {
+	if img == nil {
+		return
+	}
+	p.image.Image = img
+	if !p.image.Visible() {
+		p.image.Show()
+	}
+	p.image.Refresh()
+}
 
 func (p *Pane) toggle() {
 	if p.onToggle != nil {

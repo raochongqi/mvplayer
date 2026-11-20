@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -12,7 +13,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
-	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
 
 	"mvplayer/internal/history"
@@ -43,6 +43,7 @@ type App struct {
 	rateLbl    *widget.Label
 	root       *fyne.Container
 	statusLbl  *widget.Label
+	factory    func() (player.Player, error)
 	stop       chan struct{}
 	stopOnce   sync.Once
 }
@@ -61,6 +62,7 @@ func New(a fyne.App, w fyne.Window, histPath string) *App {
 		globalStep:  10,
 		layoutBtns: map[layout.Layout]*chipButton{},
 		stop:       make(chan struct{}),
+		factory:    player.NewDefault,
 	}
 	if s, err := history.Load(histPath); err == nil {
 		app.hist = s
@@ -82,11 +84,13 @@ func New(a fyne.App, w fyne.Window, histPath string) *App {
 	app.root = container.NewBorder(app.buildToolbar(), app.buildFooter(), nil, nil, app.stage)
 	w.SetContent(app.root)
 	w.SetOnDropped(app.onDropped)
+	w.Canvas().SetOnTypedKey(app.onKey)
 	w.SetCloseIntercept(func() {
 		app.persistHistory()
 		w.Close()
 	})
 	go app.tick()
+	go app.renderLoop()
 	return app
 }
 
@@ -164,15 +168,12 @@ func (a *App) Start() {
 }
 
 func (a *App) openDialog() {
-	d := dialog.NewFileOpen(func(rc fyne.URIReadCloser, err error) {
-		if err != nil || rc == nil {
-			return
+	p := newMultiPicker(a.win, func(paths []string) {
+		for _, path := range paths {
+			a.AddFile(path)
 		}
-		defer rc.Close()
-		a.AddFile(rc.URI().Path())
-	}, a.win)
-	d.SetFilter(storage.NewExtensionFileFilter([]string{".mkv", ".mp4", ".webm"}))
-	d.Show()
+	})
+	p.Show()
 }
 
 // AddFile adds one video to the first empty pane.
@@ -188,7 +189,7 @@ func (a *App) AddFile(path string) {
 		dialog.ShowInformation("已是 4 路", "请先移除一路再打开新文件。", a.win)
 		return
 	}
-	eng, err := player.NewDefault()
+	eng, err := a.factory()
 	if err != nil {
 		dialog.ShowError(fmt.Errorf("创建播放器失败：%w", err), a.win)
 		return
@@ -265,10 +266,19 @@ func (a *App) removePane(p *Pane) {
 }
 
 func (a *App) setPaneRate(p *Pane, rate float64) {
-	if i := a.indexOf(p); i >= 0 && i < len(a.players) {
-		_ = a.players[i].SetRate(player.ClampRate(rate))
-		p.SetRateBadge(player.ClampRate(rate))
+	p.baseRate = rate
+	a.applyRate(p)
+}
+
+// applyRate pushes clamp(base+overlay) to the engine and the badge.
+func (a *App) applyRate(p *Pane) {
+	i := a.indexOf(p)
+	if i < 0 || i >= len(a.players) {
+		return
 	}
+	eff := player.ClampRate(p.baseRate + a.overlay)
+	_ = a.players[i].SetRate(eff)
+	p.SetRateBadge(eff)
 }
 
 func (a *App) togglePane(p *Pane) {
@@ -326,23 +336,20 @@ func (a *App) toggleAll() {
 func (a *App) seekAll(ms int64) { _ = a.ctrl.SeekAll(ms) }
 
 func (a *App) setAllRates(r float64) {
-	_ = a.ctrl.SetBaseAll(r)
 	for _, p := range a.panes {
 		if p.Path != "" {
-			p.SetRateBadge(r + a.overlay)
+			p.baseRate = r
+			a.applyRate(p)
 		}
 	}
 	a.refreshRateLabel()
 }
 
 func (a *App) nudgeAllRates(delta float64) {
-	a.overlay += delta
-	a.overlay = clampOverlay(a.overlay)
-	for i, p := range a.panes {
-		if p.Path != "" && i < len(a.players) {
-			r := player.ClampRate(a.players[i].Rate() + delta)
-			_ = a.players[i].SetRate(r)
-			p.SetRateBadge(r)
+	a.overlay = clampOverlay(a.overlay + delta)
+	for _, p := range a.panes {
+		if p.Path != "" {
+			a.applyRate(p)
 		}
 	}
 	a.refreshRateLabel()
@@ -362,6 +369,19 @@ func (a *App) refreshRateLabel() {
 	if a.rateLbl != nil {
 		a.rateLbl.SetText(fmt.Sprintf("叠加 %+.2f×", a.overlay))
 	}
+}
+
+// rateLists renders the base and effective rate lists for the status bar.
+func (a *App) rateLists() (string, string) {
+	var bases, effs []string
+	for _, p := range a.panes {
+		if p.Path == "" {
+			continue
+		}
+		bases = append(bases, fmt.Sprintf("%.2f×", p.baseRate))
+		effs = append(effs, fmt.Sprintf("%.2f×", player.ClampRate(p.baseRate+a.overlay)))
+	}
+	return strings.Join(bases, " / "), strings.Join(effs, " / ")
 }
 
 func (a *App) persistHistory() {
@@ -404,6 +424,22 @@ func (a *App) showHistory() {
 	dialog.ShowCustom("历史播放", "关闭", list, a.win)
 }
 
+func (a *App) onKey(ev *fyne.KeyEvent) {
+	switch ev.Name {
+	case fyne.KeySpace:
+		a.toggleAll()
+	case fyne.KeyLeft:
+		a.seekAll(-10_000)
+	case fyne.KeyRight:
+		a.seekAll(10_000)
+	case fyne.Key1, fyne.Key2, fyne.Key3, fyne.Key4, fyne.Key5, fyne.Key6, fyne.Key7:
+		idx := int(ev.Name[len(ev.Name)-1] - '1')
+		if idx >= 0 && idx < len(layout.All) {
+			a.setLayout(layout.All[idx])
+		}
+	}
+}
+
 func (a *App) onDropped(_ fyne.Position, uris []fyne.URI) {
 	for _, u := range uris {
 		a.AddFile(u.Path())
@@ -424,11 +460,48 @@ func (a *App) refreshStatus() {
 	if a.ctrl.Paused() && n > 0 {
 		state = "已暂停"
 	}
-	a.statusLbl.SetText(fmt.Sprintf("%d 路 · %s · 叠加 %+.2f×", n, state, a.overlay))
+	bases, effs := a.rateLists()
+	extra := ""
+	if bases != "" {
+		extra = fmt.Sprintf(" · 基线 %s · 叠加后 %s", bases, effs)
+	}
+	a.statusLbl.SetText(fmt.Sprintf("%d 路 · %s%s", n, state, extra))
 }
 
 func (a *App) Stop() {
 	a.stopOnce.Do(func() { close(a.stop) })
+}
+
+// SetFactory replaces the player constructor (tests inject fake renderers).
+func (a *App) SetFactory(f func() (player.Player, error)) { a.factory = f }
+
+func (a *App) renderLoop() {
+	t := time.NewTicker(33 * time.Millisecond)
+	defer t.Stop()
+	for {
+		select {
+		case <-a.stop:
+			return
+		case <-t.C:
+		}
+		for i, p := range a.panes {
+			if p.Path == "" || i >= len(a.players) {
+				continue
+			}
+			vr, ok := a.players[i].(player.VideoRenderer)
+			if !ok {
+				continue
+			}
+			sz := p.Root.Size()
+			w, h := int(sz.Width), int(sz.Height)
+			if w < 32 || h < 32 {
+				continue
+			}
+			if img, ok := vr.RenderFrame(w, h); ok && img != nil {
+				p.SetFrame(img)
+			}
+		}
+	}
 }
 
 func (a *App) tick() {

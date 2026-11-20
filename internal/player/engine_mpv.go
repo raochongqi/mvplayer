@@ -8,6 +8,7 @@ package player
 /*
 #cgo pkg-config: mpv
 #include <mpv/client.h>
+#include <mpv/render.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -23,12 +24,44 @@ static int set_double(mpv_handle *h, const char *name, double v) {
 static int get_double(mpv_handle *h, const char *name, double *out) {
     return mpv_get_property(h, name, MPV_FORMAT_DOUBLE, out);
 }
+
+static int create_sw_render(mpv_handle *h, mpv_render_context **ctx) {
+    char *api = "sw";
+    mpv_render_param params[2];
+    params[0].type = MPV_RENDER_PARAM_API_TYPE;
+    params[0].data = api;
+    params[1].type = MPV_RENDER_PARAM_INVALID;
+    params[1].data = NULL;
+    return mpv_render_context_create(ctx, h, params);
+}
+
+static int render_sw(mpv_render_context *ctx, int w, int h, void *buf, size_t stride) {
+    int size[2];
+    char *fmt = "rgb0";
+    mpv_render_param params[5];
+    size[0] = w;
+    size[1] = h;
+    params[0].type = MPV_RENDER_PARAM_SW_SIZE;
+    params[0].data = size;
+    params[1].type = MPV_RENDER_PARAM_SW_FORMAT;
+    params[1].data = fmt;
+    params[2].type = MPV_RENDER_PARAM_SW_STRIDE;
+    params[2].data = &stride;
+    params[3].type = MPV_RENDER_PARAM_SW_POINTER;
+    params[3].data = buf;
+    params[4].type = MPV_RENDER_PARAM_INVALID;
+    params[4].data = NULL;
+    return mpv_render_context_render(ctx, params);
+}
+
+static void free_render(mpv_render_context *ctx) { mpv_render_context_free(ctx); }
 */
 import "C"
 
 import (
 	"errors"
 	"fmt"
+	"image"
 	"sync"
 	"unsafe"
 )
@@ -40,6 +73,11 @@ type Engine struct {
 	handle *C.mpv_handle
 	path   string
 	closed bool
+
+	rctx    *C.mpv_render_context
+	bufs    [2][]byte
+	bufIdx  int
+	lastRGBA *image.RGBA
 }
 
 // NewDefault returns a libmpv-backed Player.
@@ -53,11 +91,22 @@ func NewEngine() (*Engine, error) {
 	if h == nil {
 		return nil, errors.New("player: mpv_create failed")
 	}
+	// The render API needs the libmpv video output.
+	vo := C.CString("vo")
+	voVal := C.CString("libmpv")
+	C.mpv_set_option_string(h, vo, voVal)
+	C.free(unsafe.Pointer(vo))
+	C.free(unsafe.Pointer(voVal))
 	if rc := C.mpv_initialize(h); rc < 0 {
 		C.mpv_terminate_destroy(h)
 		return nil, fmt.Errorf("player: mpv_initialize failed: %d", int(rc))
 	}
-	return &Engine{handle: h}, nil
+	e := &Engine{handle: h}
+	if rc := C.create_sw_render(h, &e.rctx); rc < 0 {
+		C.mpv_terminate_destroy(h)
+		return nil, fmt.Errorf("player: sw render context failed: %d", int(rc))
+	}
+	return e, nil
 }
 
 // SetOption sets a string option before Open (e.g. "vo" = "null").
@@ -95,6 +144,10 @@ func (e *Engine) Close() error {
 		return nil
 	}
 	e.closed = true
+	if e.rctx != nil {
+		C.free_render(e.rctx)
+		e.rctx = nil
+	}
 	C.mpv_terminate_destroy(e.handle)
 	return nil
 }
@@ -164,6 +217,34 @@ func (e *Engine) WaitEvent() (int, error) {
 	defer e.mu.Unlock()
 	ev := C.mpv_wait_event(e.handle, 0.1)
 	return int(ev.event_id), nil
+}
+
+// RenderFrame draws the current video frame at w×h into an RGBA image.
+// The software renderer writes rgb0 (alpha 0); the alpha byte is filled with
+// 255 so canvas.Image composites it.
+func (e *Engine) RenderFrame(w, h int) (image.Image, bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.rctx == nil || e.closed || w <= 0 || h <= 0 {
+		return nil, false
+	}
+	n := w * h * 4
+	idx := e.bufIdx
+	if cap(e.bufs[idx]) < n {
+		e.bufs[idx] = make([]byte, n)
+	}
+	buf := e.bufs[idx][:n]
+	stride := C.size_t(w * 4)
+	if C.render_sw(e.rctx, C.int(w), C.int(h), unsafe.Pointer(&buf[0]), stride) < 0 {
+		return nil, false
+	}
+	for i := 3; i < n; i += 4 {
+		buf[i] = 255
+	}
+	img := &image.RGBA{Pix: buf, Stride: w * 4, Rect: image.Rect(0, 0, w, h)}
+	e.lastRGBA = img
+	e.bufIdx = 1 - idx
+	return img, true
 }
 
 func (e *Engine) getDouble(name string) float64 {

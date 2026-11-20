@@ -4,7 +4,10 @@
 // so this package stays testable without cgo.
 package player
 
-import "fmt"
+import (
+	"fmt"
+	"image"
+)
 
 // Rate limits from the requirements: every pane can run at 0.5x..8x.
 const (
@@ -21,6 +24,14 @@ func ClampRate(r float64) float64 {
 		return MaxRate
 	}
 	return r
+}
+
+// VideoRenderer is implemented by engines that can hand out decoded frames as
+// images (libmpv software render API). The UI paints them into a canvas.Image.
+type VideoRenderer interface {
+	// RenderFrame draws the current frame at w×h and returns it. The second
+	// return value reports whether a new frame was produced.
+	RenderFrame(w, h int) (image.Image, bool)
 }
 
 // Player is one video pane's playback control.
