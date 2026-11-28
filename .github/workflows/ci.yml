@@ -71,6 +71,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             gcc-mingw-w64-x86-64 nsis p7zip-full curl
+        # NOTE: do not install libmpv-dev here. The Windows build must not need
+        # pkg-config: internal/player/engine_mpv.go is `#cgo !windows pkg-config: mpv`
+        # and takes include/ldflags from CGO_CFLAGS/CGO_LDFLAGS instead. If this job
+        # ever starts needing the host mpv.pc again, the cross-build is broken.
 
       - name: fetch official libmpv (not committed)
         run: make fetch-libmpv
@@ -80,6 +84,18 @@ jobs:
           make package-windows
           makensis packaging/windows/installer.nsi
           ls -lh build/mvplayer.exe build/libmpv-2.dll build/mvPlayer-0.1.0-setup.exe
+
+      - name: verify the exe links against the shipped dll
+        run: |
+          # A silent regression here produces an exe that only fails on the user's
+          # machine ("libmpv-2.dll not found"), which is exactly what a packaging
+          # job exists to prevent.
+          objdump=x86_64-w64-mingw32-objdump
+          for dll in libmpv-2.dll OPENGL32.dll USER32.dll; do
+            $objdump -p build/mvplayer.exe | grep -q "DLL Name: $dll" \
+              || { echo "mvplayer.exe does not import $dll"; exit 1; }
+          done
+          echo "imports ok"
 
       - uses: actions/upload-artifact@v4
         with:

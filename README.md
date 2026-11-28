@@ -22,6 +22,20 @@ make package-windows       # 交叉编译 + 拷贝 libmpv-2.dll 到 build/
 makensis packaging/windows/installer.nsi
 ```
 
+### Windows 本机（Docker，无需 mingw）
+
+Windows 上只有 MSVC 也能出包——Go 的 cgo 不认 MSVC，但可以在官方 `golang` 镜像里交叉编译：
+
+```powershell
+./scripts/build-windows-docker.ps1              # build/mvplayer.exe + build/libmpv-2.dll
+./scripts/build-windows-docker.ps1 -Installer   # 另出 build/mvPlayer-0.1.0-setup.exe
+```
+
+容器内自动装 `gcc-mingw-w64-x86-64`/`p7zip`/`nsis`，apt 与 `GOPROXY` 走国内镜像；
+libmpv 默认从 GitHub release 取（`-MpvProxy` 可换加速镜像，`-MpvUrl` 可直接指定）。
+源码会复制到容器内并统一成 LF——`core.autocrlf=true` 的 Windows 检出让 `Makefile`/`*.sh` 带 CRLF，
+在 Linux 容器里会直接报错。加 `-SkipTests` 可跳过 `go vet`/`go test` 快速迭代。
+
 `libmpv-2.dll`（约 116 MiB）不进仓库，由 `scripts/fetch-libmpv.sh` 按需下载；
 安装包会把它和 `mvplayer.exe` 一起打包。手动下载地址：
 <https://sourceforge.net/projects/mpv-player-windows/files/libmpv/>。

@@ -1,0 +1,16 @@
+# 本仓库的构建脚本在 Linux 容器/CI 里执行，CRLF 会让 `bash` 和 `make` 直接报错
+# （典型症状：`set: pipefail: invalid option name`、`missing separator`）。
+# 这些文件无论在哪台机器检出，都必须是 LF。
+*.sh        text eol=lf
+Makefile    text eol=lf
+*.nsi       text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.go        text eol=lf
+go.mod      text eol=lf
+go.sum      text eol=lf
+
+# 二进制产物永不参与行尾转换，也不该进仓库（见 .gitignore）
+*.exe       binary
+*.dll       binary
+*.7z        binary

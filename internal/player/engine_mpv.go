@@ -6,7 +6,13 @@
 package player
 
 /*
-#cgo pkg-config: mpv
+// pkg-config exists for the native (Linux/macOS) builds. The Windows build is
+// cross-compiled with mingw against third_party/mpv, where the include/LDFLAGS
+// come from CGO_CFLAGS/CGO_LDFLAGS (see `make package-windows`); asking
+// pkg-config there would look up the *build host*'s Linux mpv.pc and fail on
+// runners that don't ship libmpv-dev.
+#cgo !windows pkg-config: mpv
+#cgo windows LDFLAGS: -lmpv
 #include <mpv/client.h>
 #include <mpv/render.h>
 #include <stdlib.h>

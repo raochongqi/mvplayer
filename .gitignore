@@ -5,3 +5,11 @@ docs/evidence/
 .docs/evidence/
 *.log
 third_party/
+
+# 二进制一律不进仓库：由 scripts/ 与 CI 现场生成
+*.exe
+*.dll
+*.so
+*.dylib
+*.7z
+*.zip
